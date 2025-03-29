@@ -39,6 +39,12 @@ void CTopor<TLit,TUInd,Compress>::AddClause(const span<TLit> c)
 }
 
 template <typename TLit, typename TUInd, bool Compress>
+void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> c, CardinalityPredicate cp, uint64_t k)
+{
+	
+}
+
+template <typename TLit, typename TUInd, bool Compress>
 TToporReturnVal CTopor<TLit,TUInd,Compress>::Solve(const span<TLit> assumps, pair<double, bool> toInSecIsCpuTime, uint64_t confThr)
 {
 	return m_Topi->Solve(assumps, toInSecIsCpuTime, confThr);

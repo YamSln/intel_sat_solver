@@ -94,6 +94,11 @@ namespace Topor
 		VAL_STOP,
 		VAL_CONTINUE
 	};
+
+	enum class CardinalityPredicate
+	{
+		LT, LEQ, EQ, GEQ, GT
+	};
 	
 	// New learnt clause report callback type
 	template <typename TLit>

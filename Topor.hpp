@@ -50,6 +50,9 @@ namespace Topor
 		// Signed and unsigned integers of at most 32 bits and floating-points of at most the size of a C++ double 
 		// Sets the status to permanent error, if the name/value combination is wrong. Run GetErrorStatus for details.
 		void SetParam(const std::string& paramName, double newVal);
+
+		// Add cardinality constraint
+		void AddCardinalityConstraint(const std::span<TLit> c, CardinalityPredicate cp, uint64_t k);
 		
 		// Boost the score of the variable v by value (the greater the value is, the greater the bump is)
 		void BoostScore(TLit v, double value = 1.0);

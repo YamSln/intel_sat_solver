@@ -431,6 +431,12 @@ int main(int argc, char** argv)
 		topor32 ? topor32->AddClause(c) : topor64 ? topor64->AddClause(c) : toporc->AddClause(c);
 	};
 
+	auto ToporAddCardinalityConstraint = [&](const span<TLit> c, CardinalityPredicate cp, uint32_t k)
+	{
+		assert(!AllToporsNull());
+		topor32 ? topor32->AddCardinalityConstraint(c, cp, k) : topor64 ? topor64->AddCardinalityConstraint(c, cp, k) : toporc->AddCardinalityConstraint(c, cp, k);
+	};
+
 	auto ToporGetSolveInvs = [&]()
 	{
 		assert(!AllToporsNull());
@@ -1322,7 +1328,6 @@ int main(int argc, char** argv)
 				catch (...)
 				{
 					errorString = "c topor_tool ERROR: couldn't translate the following line or parts of it into a vector of literals at line number " + to_string(lineNum) + "\n";
-					lits.clear();
 					break;
 				}
 			}
@@ -1347,6 +1352,57 @@ int main(int argc, char** argv)
 				return BadRetVal;
 			}
 			continue;
+		}
+
+		auto ParsePredicate = [&]()
+		{
+				char predicate = line[currLineI++];
+				bool containsEquality = line[currLineI] == '=';
+
+				if (containsEquality)
+					++currLineI;
+
+				switch (predicate)
+				{
+				case '<':
+					return containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
+				case '=':
+					return CardinalityPredicate::EQ;
+				case '>':
+					return containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
+				default:
+					throw logic_error("c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum));
+				}
+		};
+
+		if (line[currLineI] == 'd')
+		{
+			++currLineI;
+			SkipWhitespaces();
+
+			auto [errString, lits] = BufferToLits();
+			if (errString.empty())
+			{
+				cout << "c topor_tool ERROR: no cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+				return BadRetVal;
+			}
+			
+			CardinalityPredicate cp = ParsePredicate();
+			auto k = ParseNumber();
+			if (k <= 0)
+			{
+				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a non-positive right hand side\n";
+				return BadRetVal;
+			}
+
+			if (cp == CardinalityPredicate::EQ && k > lits.size() ||
+				cp == CardinalityPredicate::GEQ && k > lits.size() ||
+				cp == CardinalityPredicate::GT && k >= lits.size())
+			{
+				cout << "c topor_tool note: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
+			}	
+			
+			ToporAddCardinalityConstraint(lits, cp, k);
 		}
 
 		// New clause
