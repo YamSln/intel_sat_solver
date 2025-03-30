@@ -35,11 +35,6 @@ CTopor<TLit,TUInd,Compress>::~CTopor()
 template <typename TLit, typename TUInd, bool Compress>
 void CTopor<TLit,TUInd,Compress>::AddClause(const span<TLit> c)
 {
-	for (TLit lit : c)
-	{
-		cout << lit << " ";
-	}
-	cout << endl;
 	m_Topi->AddUserClause(c);
 }
 

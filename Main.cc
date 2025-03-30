@@ -218,6 +218,7 @@ int main(int argc, char** argv)
 		cout << "\tc b <BacktrackLevel>" << endl;
 		cout << "\tc n <ConfigNumber>" << endl;
 		cout << "\tc s <Lit1 <Lit2> ... <Litn>: solve under the assumptions {<Lit1 <Lit2> ... <Litn>}" << endl;
+		cout << "\tc d <Lit1 <Lit2> ... <Litn> <Predicate> <k>: cardinality constraint over {<Lit1 <Lit2> ... <Litn>} with predicate (<, <=, = or ==, >=, >) and value k" << endl;
 		cout << "\tc The solver parses the p cnf vars clss line, but it ignores the number of clauses and uses the number of variables as a non-mandatory hint" << endl;
 		cout << print_as_color <ansi_color_code::red>("c Intel(R) SAT Solver executable parameters:") << endl;
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/solver_mode") << " : enum (0, 1, or 2); default = " << print_as_color<ansi_color_code::green>("0") << " : " << "what type of solver to use in terms of clause buffer indexing and compression: 0 -- 32-bit index, uncompressed, 1 -- 64-bit index, uncompressed, 2 -- 64-bit index, bit-array compression \n";
