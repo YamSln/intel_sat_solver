@@ -1389,20 +1389,23 @@ int main(int argc, char** argv)
 			
 			CardinalityPredicate cp = ParsePredicate();
 			auto k = ParseNumber();
-			if (k <= 0)
+			if (k < 0)
 			{
-				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a non-positive right hand side\n";
+				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a negative right hand side\n";
 				return BadRetVal;
 			}
 
-			if (cp == CardinalityPredicate::EQ && k > lits.size() ||
+			if (cp == CardinalityPredicate::LT && k == 0 ||
+				cp == CardinalityPredicate::EQ && k > lits.size() ||
 				cp == CardinalityPredicate::GEQ && k > lits.size() ||
 				cp == CardinalityPredicate::GT && k >= lits.size())
 			{
-				cout << "c topor_tool note: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
+				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
+				return BadRetVal;
 			}	
 			
 			ToporAddCardinalityConstraint(lits, cp, k);
+			continue;
 		}
 
 		// New clause

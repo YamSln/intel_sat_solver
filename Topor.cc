@@ -35,13 +35,164 @@ CTopor<TLit,TUInd,Compress>::~CTopor()
 template <typename TLit, typename TUInd, bool Compress>
 void CTopor<TLit,TUInd,Compress>::AddClause(const span<TLit> c)
 {
+	for (TLit lit : c)
+	{
+		cout << lit << " ";
+	}
+	cout << endl;
 	m_Topi->AddUserClause(c);
 }
 
 template <typename TLit, typename TUInd, bool Compress>
-void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> c, CardinalityPredicate cp, uint64_t k)
+int32_t CTopor<TLit, TUInd, Compress>::TotalizerEncode(const span<TLit> E, const span<TLit> R, int32_t m, int32_t currentInput, int32_t currentLink)
 {
-	
+	int m1 = m / 2;
+	int m2 = m - m / 2;
+	vector<TLit> A, B;
+	if (m1 == 1)
+	{
+		A.push_back(E[currentInput]);
+		++currentInput;
+	}
+	else
+	{
+		for (int v = 0; v < m1; v++)
+		{
+			A.push_back(currentLink);
+			++currentLink;
+		}
+		currentInput = TotalizerEncode(E, A, m1, currentInput, currentLink);
+	}
+	if (m2 == 1)
+	{
+		B.push_back(E[currentInput]);
+		++currentInput;
+	}
+	else
+	{
+		for (int v = 0; v < m2; v++)
+		{
+			B.push_back(currentLink);
+			++currentLink;
+		}
+		currentInput = TotalizerEncode(E, B, m2, currentInput, currentLink);
+	}
+
+	vector<TLit> C1, C2;
+	for (int a = 0; a < m1 + 1; a++)
+	{
+		for (int b = 0; b < m2 + 1; b++)
+		{
+			if (0 < a + b)
+			{
+				if (a > 0)
+					C1.push_back(-1 * A[a - 1]);
+				if (b > 0)
+					C1.push_back(-1 * B[b - 1]);
+				C1.push_back(R[a + b - 1]);
+				AddClause(C1);
+			}
+			if (a + b < m)
+			{
+				if (a < m1)
+					C2.push_back(A[a]);
+				if (b < m2)
+					C2.push_back(B[b]);
+				C2.push_back(-1 * R[a + b]);
+				AddClause(C2);
+			}
+			C1.clear();
+			C2.clear();
+		}
+	}
+	return currentInput;
+}
+
+template <typename TLit, typename TUInd, bool Compress>
+void CTopor<TLit, TUInd, Compress>::ComparatorEncode(const std::span<TLit> S, CardinalityPredicate cp, uint64_t k)
+{
+	switch (cp)
+	{
+	case CardinalityPredicate::LT:
+		for (uint64_t j = k - 1; j < S.size(); j++)
+		{
+			AddClause({ -1 * S[j] });
+		}
+		break;
+	case CardinalityPredicate::LEQ:
+		for (uint64_t j = k; j < S.size(); j++)
+		{
+			AddClause({ -1 * S[j] });
+		}
+		break;
+	case CardinalityPredicate::EQ:
+		for (uint64_t i = 0; i < k; i++)
+		{
+			AddClause({ S[i] });
+		}
+		for (uint64_t j = k; j < S.size(); j++)
+		{
+			AddClause({ -1 * S[j] });
+		}
+		break;
+	case CardinalityPredicate::GEQ:
+		for (uint64_t i = 0; i < k; i++)
+		{
+			AddClause({ S[i] });
+		}
+		break;
+	case CardinalityPredicate::GT:
+		for (uint64_t i = 0; i < k + 1; i++)
+		{
+			AddClause({ S[i] });
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+template <typename TLit, typename TUInd, bool Compress>
+void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> lits, CardinalityPredicate cp, uint64_t k)
+{
+	if (lits.size() == 1)
+	{
+		switch (cp)
+		{
+		case CardinalityPredicate::LEQ:
+			if (k == 1)
+				break;
+		case CardinalityPredicate::LT:
+			AddClause({ -1 * lits[0] });
+			break;
+		case CardinalityPredicate::EQ:
+			if (k == 0)
+				AddClause({ -1 * lits[0] });
+			else
+				AddClause({ lits[0] });
+			break;
+		case CardinalityPredicate::GEQ:
+			if (k != 1)
+				break;
+		case CardinalityPredicate::GT:
+			AddClause({ lits[0] });
+			break;
+		default:
+			break;
+		}
+	}
+	else
+	{
+		assert(lits.size() > 1);
+		TLit currentLink = GetMaxUserVar() + 1;
+		vector<TLit> S;
+		for (int v = currentLink; v < currentLink + lits.size(); v++)
+		{
+			S.push_back(v);
+		}
+		TotalizerEncode(lits, S, lits.size(), 0, currentLink + lits.size());
+		ComparatorEncode(S, cp, k);
+	}
 }
 
 template <typename TLit, typename TUInd, bool Compress>

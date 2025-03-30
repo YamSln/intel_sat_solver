@@ -52,7 +52,7 @@ namespace Topor
 		void SetParam(const std::string& paramName, double newVal);
 
 		// Add cardinality constraint
-		void AddCardinalityConstraint(const std::span<TLit> c, CardinalityPredicate cp, uint64_t k);
+		void AddCardinalityConstraint(const std::span<TLit> lits, CardinalityPredicate cp, uint64_t k);
 		
 		// Boost the score of the variable v by value (the greater the value is, the greater the bump is)
 		void BoostScore(TLit v, double value = 1.0);
@@ -121,5 +121,8 @@ namespace Topor
 		void SetParallelData(unsigned threadId, std::function<void(unsigned threadId, int lit)> ReportUnitClause, std::function<int(unsigned threadId, bool reinit)> GetNextUnitClause);		
 	protected:
 		CTopi<TLit, TUInd, Compress>* m_Topi;
+	private:
+		int32_t TotalizerEncode(const std::span<TLit> E, const std::span<TLit> R, int32_t m, int32_t currentInput, int32_t currentLink);
+		void ComparatorEncode(const std::span<TLit> S, CardinalityPredicate cp, uint64_t k);
 	};
 }
