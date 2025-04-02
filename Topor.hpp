@@ -122,7 +122,7 @@ namespace Topor
 	protected:
 		CTopi<TLit, TUInd, Compress>* m_Topi;
 	private:
-		int32_t TotalizerEncode(const std::span<TLit> E, const std::span<TLit> R, int32_t m, int32_t currentInput, int32_t currentLink);
-		void ComparatorEncode(const std::span<TLit> S, CardinalityPredicate cp, uint64_t k);
+		int32_t TotalizerEncode(const std::span<TLit> inVars, const std::span<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC);
+		void ComparatorEncode(const std::span<TLit> outVars, CardinalityPredicate cp, uint64_t k);
 	};
 }

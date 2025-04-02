@@ -39,107 +39,107 @@ void CTopor<TLit,TUInd,Compress>::AddClause(const span<TLit> c)
 }
 
 template <typename TLit, typename TUInd, bool Compress>
-int32_t CTopor<TLit, TUInd, Compress>::TotalizerEncode(const span<TLit> E, const span<TLit> R, int32_t m, int32_t currentInput, int32_t currentLink)
+int32_t CTopor<TLit, TUInd, Compress>::TotalizerEncode(const span<TLit> inVars, const span<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC)
 {
-	int m1 = m / 2;
-	int m2 = m - m / 2;
-	vector<TLit> A, B;
-	if (m1 == 1)
+	int leftSize = rootSize / 2;
+	int rightSize = rootSize - rootSize / 2;
+	vector<TLit> leftLinks, rightLinks;
+	if (leftSize == 1)
 	{
-		A.push_back(E[currentInput]);
-		++currentInput;
+		leftLinks.push_back(inVars[currentInputI]);
+		++currentInputI;
 	}
 	else
 	{
-		for (int v = 0; v < m1; v++)
+		for (int v = 0; v < leftSize; v++)
 		{
-			A.push_back(currentLink);
-			++currentLink;
+			leftLinks.push_back(currentLinkC);
+			++currentLinkC;
 		}
-		currentInput = TotalizerEncode(E, A, m1, currentInput, currentLink);
+		currentInputI = TotalizerEncode(inVars, leftLinks, leftSize, currentInputI, currentLinkC);
 	}
-	if (m2 == 1)
+	if (rightSize == 1)
 	{
-		B.push_back(E[currentInput]);
-		++currentInput;
+		rightLinks.push_back(inVars[currentInputI]);
+		++currentInputI;
 	}
 	else
 	{
-		for (int v = 0; v < m2; v++)
+		for (int v = 0; v < rightSize; v++)
 		{
-			B.push_back(currentLink);
-			++currentLink;
+			rightLinks.push_back(currentLinkC);
+			++currentLinkC;
 		}
-		currentInput = TotalizerEncode(E, B, m2, currentInput, currentLink);
+		currentInputI = TotalizerEncode(inVars, rightLinks, rightSize, currentInputI, currentLinkC);
 	}
 
-	vector<TLit> C1, C2;
-	for (int a = 0; a < m1 + 1; a++)
+	vector<TLit> c1, c2;
+	for (int a = 0; a < leftSize + 1; a++)
 	{
-		for (int b = 0; b < m2 + 1; b++)
+		for (int b = 0; b < rightSize + 1; b++)
 		{
 			if (0 < a + b)
 			{
 				if (a > 0)
-					C1.push_back(-1 * A[a - 1]);
+					c1.push_back(-1 * leftLinks[a - 1]);
 				if (b > 0)
-					C1.push_back(-1 * B[b - 1]);
-				C1.push_back(R[a + b - 1]);
-				AddClause(C1);
+					c1.push_back(-1 * rightLinks[b - 1]);
+				c1.push_back(rootLinks[a + b - 1]);
+				AddClause(c1);
 			}
-			if (a + b < m)
+			if (a + b < rootSize)
 			{
-				if (a < m1)
-					C2.push_back(A[a]);
-				if (b < m2)
-					C2.push_back(B[b]);
-				C2.push_back(-1 * R[a + b]);
-				AddClause(C2);
+				if (a < leftSize)
+					c2.push_back(leftLinks[a]);
+				if (b < rightSize)
+					c2.push_back(rightLinks[b]);
+				c2.push_back(-1 * rootLinks[a + b]);
+				AddClause(c2);
 			}
-			C1.clear();
-			C2.clear();
+			c1.clear();
+			c2.clear();
 		}
 	}
-	return currentInput;
+	return currentInputI;
 }
 
 template <typename TLit, typename TUInd, bool Compress>
-void CTopor<TLit, TUInd, Compress>::ComparatorEncode(const std::span<TLit> S, CardinalityPredicate cp, uint64_t k)
+void CTopor<TLit, TUInd, Compress>::ComparatorEncode(const span<TLit> outVars, CardinalityPredicate cp, uint64_t k)
 {
 	switch (cp)
 	{
 	case CardinalityPredicate::LT:
-		for (uint64_t j = k - 1; j < S.size(); j++)
+		for (uint64_t j = k - 1; j < outVars.size(); j++)
 		{
-			AddClause({ -1 * S[j] });
+			AddClause({ -1 * outVars[j] });
 		}
 		break;
 	case CardinalityPredicate::LEQ:
-		for (uint64_t j = k; j < S.size(); j++)
+		for (uint64_t j = k; j < outVars.size(); j++)
 		{
-			AddClause({ -1 * S[j] });
+			AddClause({ -1 * outVars[j] });
 		}
 		break;
 	case CardinalityPredicate::EQ:
 		for (uint64_t i = 0; i < k; i++)
 		{
-			AddClause({ S[i] });
+			AddClause({ outVars[i] });
 		}
-		for (uint64_t j = k; j < S.size(); j++)
+		for (uint64_t j = k; j < outVars.size(); j++)
 		{
-			AddClause({ -1 * S[j] });
+			AddClause({ -1 * outVars[j] });
 		}
 		break;
 	case CardinalityPredicate::GEQ:
 		for (uint64_t i = 0; i < k; i++)
 		{
-			AddClause({ S[i] });
+			AddClause({ outVars[i] });
 		}
 		break;
 	case CardinalityPredicate::GT:
 		for (uint64_t i = 0; i < k + 1; i++)
 		{
-			AddClause({ S[i] });
+			AddClause({ outVars[i] });
 		}
 		break;
 	default:
@@ -180,13 +180,13 @@ void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> li
 	{
 		assert(lits.size() > 1);
 		TLit currentLink = GetMaxUserVar() + 1;
-		vector<TLit> S;
+		vector<TLit> outVars;
 		for (int v = currentLink; v < currentLink + lits.size(); v++)
 		{
-			S.push_back(v);
+			outVars.push_back(v);
 		}
-		TotalizerEncode(lits, S, lits.size(), 0, currentLink + lits.size());
-		ComparatorEncode(S, cp, k);
+		TotalizerEncode(lits, outVars, lits.size(), 0, currentLink + lits.size());
+		ComparatorEncode(outVars, cp, k);
 	}
 }
 
