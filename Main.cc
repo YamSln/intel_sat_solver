@@ -42,6 +42,7 @@ class WordDelimitedBy : public std::string
 namespace fs = std::filesystem;
 
 #include "Topor.hpp"
+#include "ToporOptimization.hpp"
 
 using namespace std;
 using namespace Topor;
@@ -435,6 +436,12 @@ int main(int argc, char** argv)
 	{
 		assert(!AllToporsNull());
 		return topor32 ? topor32->GetSolveInvs() : topor64 ? topor64->GetSolveInvs() : toporc->GetSolveInvs();
+	};
+
+	auto ToporGetModel = [&]()
+	{
+		assert(!AllToporsNull());
+		return topor32 ? topor32->GetModel() : topor64 ? topor64->GetModel() : toporc->GetModel();
 	};
 
 	auto ToporOnFinishedSolving = [&](TToporReturnVal ret, bool printModel, bool printUcore, const std::span<TLit> assumps, vector<TLit>& varsToPrint)
@@ -1367,6 +1374,67 @@ int main(int argc, char** argv)
 
 	if (!AllToporsNull() && ToporGetSolveInvs() == 0)
 	{
+
+		deque<TLit> (*getSatLits)(vector<TToporLitVal> model) = [](vector<TToporLitVal> model) -> deque<TLit>
+		{
+			deque<TLit> B;
+			for (TLit v = 1; v < (TLit)model.size(); v++)
+			{
+				B.push_back(model[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v);
+			}
+			return B;
+		};
+
+		double (*pb)(std::vector<TToporLitVal>) = [](std::vector<TToporLitVal> assignment) -> double
+		{
+				// Linear combination with all weights = 1
+				int sum = 0;
+				for (int i = 1; i < assignment.size(); i++)
+				{
+					sum += (assignment[i] == TToporLitVal::VAL_SATISFIED);
+				}
+				return sum;
+		};
+
+		TToporReturnVal ret = ToporSolve();
+		if (ret == TToporReturnVal::RET_UNSAT)
+		{
+			throw logic_error("Cannot optimize with UNSAT formula!");
+		}
+		vector<TToporLitVal> mu = ToporGetModel();
+		bool isGoodEpoch = true;
+
+		while (isGoodEpoch)
+		{
+			deque<TLit> B = getSatLits(mu);
+			isGoodEpoch = false;
+
+			while (!B.empty())
+			{
+				TLit l = B.front();
+				B.pop_front();
+				for (TLit v = 1; v < (TLit)mu.size(); v++)
+				{
+					ToporFixPolarity(mu[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
+				}
+				vector<TLit> litAssump = { -1 * l };
+				TToporReturnVal ret = ToporSolve(litAssump);
+				if (ret == TToporReturnVal::RET_SAT)
+				{
+					vector<TToporLitVal> sigma = ToporGetModel();
+					if (pb(sigma) < pb(mu))
+					{
+						mu = sigma;
+						isGoodEpoch = true;
+						B = getSatLits(sigma);
+					}
+				}
+			}
+		}
+		
+		cout << pb(mu);
+
+		/*
 		if (allsatModels > 1 && !blockingVars.empty())
 		{
 			vector<TLit> assumpsEmpty;
@@ -1397,6 +1465,7 @@ int main(int argc, char** argv)
 					if (VerifyModel() == BadRetVal) return BadRetVal;
 				}
 			}
+			
 		}
 		else
 		{
@@ -1405,7 +1474,7 @@ int main(int argc, char** argv)
 				return BadRetVal;
 			}
 		}
-
+		*/
 	}
 
 	return retValBasedOnLatestSolve;
