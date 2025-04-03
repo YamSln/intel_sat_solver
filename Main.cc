@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <deque>
 #include <filesystem>
 #include <functional>
 #include <cstring>
@@ -233,6 +234,7 @@ int main(int argc, char** argv)
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/allsat_models_number") << " : unsigned long integer; default = 1" << print_as_color<ansi_color_code::green>("1") << " : " << "the maximal number of models for AllSAT. AllSAT with blocking clauses over /topor_tool/allsat_blocking_variables's variables is invoked if: (1) this parameter is greater than 1; (2) the CNF format is DIMACS without Topor-specific commands; (3) /topor_tool/allsat_blocking_variables is non-empty\n";
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/allsat_blocking_variables") << " : string; default = " << print_as_color<ansi_color_code::green>("\"\"") << " : " << "if /topor_tool/allsat_models_number > 1, specifies the variables which will be used for blocking clauses, sperated by a comma, e.g., 1,4,5,6,7,15.\n";
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/allsat_blocking_variables_file_alg") << " : string; default = " << print_as_color<ansi_color_code::green>("3") << " : " << "if /topor_tool/allsat_models_number > 1 and our parameter > 0, read the blocking variables from the first comment line in the file (format: c 1,4,5,6,7,15), where the value means: 1 -- assign lowest internal SAT variables to blocking; 2 -- assign highest internal SAT variables to blocking; >=3 -- assign their own internal SAT variables to blocking \n";
+		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/blackbox_optimization") << " : bool (0 or 1); default = " << print_as_color<ansi_color_code::green>("0") << " : " << "solve in black-box optimization mode?\n";
 
 		CTopor topor;
 		cout << topor.GetParamsDescr();
@@ -260,6 +262,7 @@ int main(int argc, char** argv)
 	unsigned long allsatBlockingFromInstanceAlg = 3;
 	// 0: 32-bit clause buffer index; 1: 64-bit clause buffer index; 2: 64-bit clause buffer index & bit-array-compression
 	uint8_t type_indexing_and_compression = 0;
+	bool bbOptMode = false;
 
 	/*
 	* Identify the input file type, read it, read the parameters too
@@ -747,6 +750,11 @@ int main(int argc, char** argv)
 							cout << errMsg;
 							return true;
 						}
+					}
+					else if (param == "blackbox_optimization")
+					{
+						cout << "c /topor_tool/blackbox_optimization " << paramValStr << endl;
+						bbOptMode = true;
 					}
 					else
 					{
@@ -1374,19 +1382,17 @@ int main(int argc, char** argv)
 
 	if (!AllToporsNull() && ToporGetSolveInvs() == 0)
 	{
-
-		deque<TLit> (*getSatLits)(vector<TToporLitVal> model) = [](vector<TToporLitVal> model) -> deque<TLit>
+		if (bbOptMode)
 		{
-			deque<TLit> B;
-			for (TLit v = 1; v < (TLit)model.size(); v++)
+			auto ToporBlackBoxOptimization = [&](double (*pb)(const std::vector<TToporLitVal>))
 			{
-				B.push_back(model[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v);
-			}
-			return B;
-		};
+				assert(!AllToporsNull());
+				CToporOptimization opt;
+				topor32 ? opt.polosat(topor32, pb) : topor64 ? opt.polosat(topor64, pb) : opt.polosat(toporc, pb);
+			};
 
-		double (*pb)(std::vector<TToporLitVal>) = [](std::vector<TToporLitVal> assignment) -> double
-		{
+			double (*pb)(std::vector<TToporLitVal>) = [](std::vector<TToporLitVal> assignment) -> double
+			{
 				// Linear combination with all weights = 1
 				int sum = 0;
 				for (int i = 1; i < assignment.size(); i++)
@@ -1394,47 +1400,10 @@ int main(int argc, char** argv)
 					sum += (assignment[i] == TToporLitVal::VAL_SATISFIED);
 				}
 				return sum;
-		};
+			};
 
-		TToporReturnVal ret = ToporSolve();
-		if (ret == TToporReturnVal::RET_UNSAT)
-		{
-			throw logic_error("Cannot optimize with UNSAT formula!");
+			ToporBlackBoxOptimization(pb);
 		}
-		vector<TToporLitVal> mu = ToporGetModel();
-		bool isGoodEpoch = true;
-
-		while (isGoodEpoch)
-		{
-			deque<TLit> B = getSatLits(mu);
-			isGoodEpoch = false;
-
-			while (!B.empty())
-			{
-				TLit l = B.front();
-				B.pop_front();
-				for (TLit v = 1; v < (TLit)mu.size(); v++)
-				{
-					ToporFixPolarity(mu[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
-				}
-				vector<TLit> litAssump = { -1 * l };
-				TToporReturnVal ret = ToporSolve(litAssump);
-				if (ret == TToporReturnVal::RET_SAT)
-				{
-					vector<TToporLitVal> sigma = ToporGetModel();
-					if (pb(sigma) < pb(mu))
-					{
-						mu = sigma;
-						isGoodEpoch = true;
-						B = getSatLits(sigma);
-					}
-				}
-			}
-		}
-		
-		cout << pb(mu);
-
-		/*
 		if (allsatModels > 1 && !blockingVars.empty())
 		{
 			vector<TLit> assumpsEmpty;
@@ -1474,7 +1443,6 @@ int main(int argc, char** argv)
 				return BadRetVal;
 			}
 		}
-		*/
 	}
 
 	return retValBasedOnLatestSolve;
