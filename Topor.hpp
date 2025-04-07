@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "ToporExternalTypes.hpp"
+#include "ToporCardinality.hpp"
 
 namespace Topor
 {
@@ -121,8 +122,5 @@ namespace Topor
 		void SetParallelData(unsigned threadId, std::function<void(unsigned threadId, int lit)> ReportUnitClause, std::function<int(unsigned threadId, bool reinit)> GetNextUnitClause);		
 	protected:
 		CTopi<TLit, TUInd, Compress>* m_Topi;
-	private:
-		int32_t TotalizerEncode(const std::span<TLit> inVars, const std::span<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC);
-		void ComparatorEncode(const std::span<TLit> outVars, CardinalityPredicate cp, uint64_t k);
 	};
 }
