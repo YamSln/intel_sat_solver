@@ -1355,8 +1355,12 @@ int main(int argc, char** argv)
 			continue;
 		}
 
+		CardinalityPredicate pred;
+
 		auto ParsePredicate = [&]()
 		{
+				string errorString = "";
+
 				char predicate = line[currLineI++];
 				bool containsEquality = line[currLineI] == '=';
 
@@ -1366,29 +1370,77 @@ int main(int argc, char** argv)
 				switch (predicate)
 				{
 				case '<':
-					return containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
+					pred = containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
+					break;
 				case '=':
-					return CardinalityPredicate::EQ;
+					pred = CardinalityPredicate::EQ;
+					break;
 				case '>':
-					return containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
+					pred = containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
+					break;
 				default:
-					throw logic_error("c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum));
+					errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+					break;
 				}
+
+				return make_pair(errorString, pred);
 		};
+
+		auto ParseCardinalityLits = [&]()
+		{
+			string errorString = "";
+
+			lits.clear();
+
+			long long currLit = numeric_limits<long long>::max();
+			while (currLit != 0)
+			{
+				try
+				{
+					currLit = ParseNumber();
+					if (currLit > numeric_limits<TLit>::max() || currLit < numeric_limits<TLit>::min())
+					{
+						errorString = "c topor_tool ERROR: the literal " + to_string(currLit) + " is too big or too small\n";
+						lits.clear();
+						break;
+					}
+					lits.push_back(TLit(currLit));
+				}
+				catch (...)
+				{
+					if (line[currLineI] != '<' &&
+						line[currLineI] != '=' &&
+						line[currLineI] != '>')
+					{
+						errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+					}
+					break;
+				}
+			}
+
+			return make_pair(errorString, lits);
+		};
+
 
 		if (line[currLineI] == 'd')
 		{
 			++currLineI;
 			SkipWhitespaces();
 
-			auto [errString, lits] = BufferToLits();
-			if (errString.empty())
+			auto [errStringLits, lits] = ParseCardinalityLits();
+			if (!errStringLits.empty())
 			{
-				cout << "c topor_tool ERROR: no cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+				cout << errStringLits;
 				return BadRetVal;
 			}
 			
-			CardinalityPredicate cp = ParsePredicate();
+			auto [errStringPred, cp] = ParsePredicate();
+			if (!errStringPred.empty())
+			{
+				cout << errStringPred;
+				return BadRetVal;
+			}
+
 			auto k = ParseNumber();
 			if (k < 0)
 			{
