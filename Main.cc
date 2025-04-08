@@ -926,6 +926,8 @@ int main(int argc, char** argv)
 		return retValBasedOnLatestSolve;
 	};
 
+	vector<char*> cardinalityConstraintLines;
+
 	while (ReadLine(f, line, maxSz) != nullptr)
 	{
 		const size_t len = strlen(line);
@@ -1355,35 +1357,82 @@ int main(int argc, char** argv)
 			continue;
 		}
 
-		CardinalityPredicate pred;
+		
 
-		auto ParsePredicate = [&]()
+		
+
+		if (line[currLineI] == 'd')
 		{
-				string errorString = "";
+			char* ccLine = new char[strlen(line) + 1];
+			strcpy(ccLine, line);
+			cardinalityConstraintLines.push_back(ccLine);
+			continue;
+		}
 
-				char predicate = line[currLineI++];
-				bool containsEquality = line[currLineI] == '=';
+		// New clause
+		auto [errString, cls] = BufferToLits();
+		if (!errString.empty())
+		{
+			cout << errString;
+			return BadRetVal;
+		}
+		if (verifyModel)
+		{
+			vmClss.push_back(cls);
+		}
+		ToporAddClause(cls);
+	}
 
-				if (containsEquality)
-					++currLineI;
+	free(line);
 
-				switch (predicate)
-				{
-				case '<':
-					pred = containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
-					break;
-				case '=':
-					pred = CardinalityPredicate::EQ;
-					break;
-				case '>':
-					pred = containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
-					break;
-				default:
-					errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
-					break;
-				}
+	for (char* ccLine : cardinalityConstraintLines)
+	{
+		const size_t len = strlen(ccLine);
+		size_t currLineI = 0;
+		auto SkipWhitespaces = [&]()
+		{
+			while (ccLine[currLineI] == ' ' && currLineI < len)
+			{
+				++currLineI;
+			}
+		};
+		SkipWhitespaces();
+		++currLineI;
+		SkipWhitespaces();
 
-				return make_pair(errorString, pred);
+		vector<TLit> lits;
+
+		auto ParseNumber = [&]()
+		{
+			SkipWhitespaces();
+			if (currLineI >= len)
+			{
+				throw logic_error("c topor_tool ERROR: no number after skipping white-spaces at line number " + to_string(lineNum));
+			}
+			bool isNeg = ccLine[currLineI] == '-';
+			if (isNeg)
+			{
+				++currLineI;
+			}
+			if (!isdigit(ccLine[currLineI]))
+			{
+				throw logic_error("c topor_tool ERROR: the first character is expected to be a digit at line number " + to_string(lineNum));
+			}
+
+			long long res = 0;
+
+			while (isdigit(ccLine[currLineI]))
+			{
+				const auto currDigit = ccLine[currLineI++] - '0';
+				res = res * 10 + (long long)(currDigit);
+			}
+
+			if (isNeg)
+			{
+				res = -res;
+			}
+
+			return res;
 		};
 
 		auto ParseCardinalityLits = [&]()
@@ -1408,9 +1457,9 @@ int main(int argc, char** argv)
 				}
 				catch (...)
 				{
-					if (line[currLineI] != '<' &&
-						line[currLineI] != '=' &&
-						line[currLineI] != '>')
+					if (ccLine[currLineI] != '<' &&
+						ccLine[currLineI] != '=' &&
+						ccLine[currLineI] != '>')
 					{
 						errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
 					}
@@ -1420,62 +1469,68 @@ int main(int argc, char** argv)
 
 			return make_pair(errorString, lits);
 		};
-
-
-		if (line[currLineI] == 'd')
+		auto [errStringLits, cardLits] = ParseCardinalityLits();
+		if (!errStringLits.empty())
 		{
-			++currLineI;
-			SkipWhitespaces();
-
-			auto [errStringLits, lits] = ParseCardinalityLits();
-			if (!errStringLits.empty())
-			{
-				cout << errStringLits;
-				return BadRetVal;
-			}
-			
-			auto [errStringPred, cp] = ParsePredicate();
-			if (!errStringPred.empty())
-			{
-				cout << errStringPred;
-				return BadRetVal;
-			}
-
-			auto k = ParseNumber();
-			if (k < 0)
-			{
-				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a negative right hand side\n";
-				return BadRetVal;
-			}
-
-			if (cp == CardinalityPredicate::LT && k == 0 ||
-				cp == CardinalityPredicate::EQ && k > lits.size() ||
-				cp == CardinalityPredicate::GEQ && k > lits.size() ||
-				cp == CardinalityPredicate::GT && k >= lits.size())
-			{
-				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
-				return BadRetVal;
-			}	
-			
-			ToporAddCardinalityConstraint(lits, cp, k);
-			continue;
-		}
-
-		// New clause
-		auto [errString, cls] = BufferToLits();
-		if (!errString.empty())
-		{
-			cout << errString;
+			cout << errStringLits;
 			return BadRetVal;
 		}
-		if (verifyModel)
-		{
-			vmClss.push_back(cls);
-		}
-		ToporAddClause(cls);
-	}
 
-	free(line);
+		auto ParsePredicate = [&]()
+		{
+			CardinalityPredicate pred;
+			string errorString = "";
+
+			char predicate = ccLine[currLineI++];
+			bool containsEquality = ccLine[currLineI] == '=';
+
+			if (containsEquality)
+				++currLineI;
+
+			switch (predicate)
+			{
+			case '<':
+				pred = containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
+				break;
+			case '=':
+				pred = CardinalityPredicate::EQ;
+				break;
+			case '>':
+				pred = containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
+				break;
+			default:
+				errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+				break;
+			}
+
+			return make_pair(errorString, pred);
+		};
+		auto [errStringPred, cp] = ParsePredicate();
+		if (!errStringPred.empty())
+		{
+			cout << errStringPred;
+			return BadRetVal;
+		}
+
+		auto k = ParseNumber();
+		if (k < 0)
+		{
+			cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a negative right hand side\n";
+			return BadRetVal;
+		}
+
+		if (cp == CardinalityPredicate::LT && k == 0 ||
+			cp == CardinalityPredicate::EQ && k > cardLits.size() ||
+			cp == CardinalityPredicate::GEQ && k > cardLits.size() ||
+			cp == CardinalityPredicate::GT && k >= cardLits.size())
+		{
+			cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
+			return BadRetVal;
+		}
+
+		ToporAddCardinalityConstraint(cardLits, cp, k);
+		free(ccLine);
+	}
 
 	if (!AllToporsNull() && ToporGetSolveInvs() == 0)
 	{
