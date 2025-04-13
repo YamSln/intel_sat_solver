@@ -44,6 +44,7 @@ namespace fs = std::filesystem;
 
 #include "Topor.hpp"
 #include "ToporOptimization.hpp"
+#include "ToporOptimizationSettings.hpp"
 
 using namespace std;
 using namespace Topor;
@@ -1384,27 +1385,21 @@ int main(int argc, char** argv)
 	{
 		if (bbOptMode)
 		{
-			auto ToporBlackBoxOptimization = [&](double (*pb)(const std::vector<TToporLitVal>))
+			auto ToporBlackBoxOptimization = [&](double (*pb)(const std::vector<TToporLitVal>), bool anytime)
 			{
 				assert(!AllToporsNull());
 				CToporOptimization opt;
-				topor32 ? opt.polosat(topor32, pb) : topor64 ? opt.polosat(topor64, pb) : opt.polosat(toporc, pb);
+				return topor32 ? opt.polosat(topor32, pb, anytime) : topor64 ? opt.polosat(topor64, pb, anytime) : opt.polosat(toporc, pb, anytime);
 			};
 
-			double (*pb)(std::vector<TToporLitVal>) = [](std::vector<TToporLitVal> assignment) -> double
+			TToporReturnVal ret = ToporBlackBoxOptimization(pb, true);
+			if (ret != TToporReturnVal::RET_SAT)
 			{
-				// Linear combination with all weights = 1
-				int sum = 0;
-				for (int i = 1; i < assignment.size(); i++)
-				{
-					sum += (assignment[i] == TToporLitVal::VAL_SATISFIED);
-				}
-				return sum;
-			};
-
-			ToporBlackBoxOptimization(pb);
+				return BadRetVal;
+			}
+			retValBasedOnLatestSolve = 10;
 		}
-		if (allsatModels > 1 && !blockingVars.empty())
+		else if (allsatModels > 1 && !blockingVars.empty())
 		{
 			vector<TLit> assumpsEmpty;
 			ret = ToporSolve();

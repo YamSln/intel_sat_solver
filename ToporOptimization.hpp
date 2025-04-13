@@ -12,12 +12,12 @@ namespace Topor
 	{
 	public:
 		template <typename TLit, typename TUInd, bool Compress>
-		void polosat(CTopor<TLit, TUInd, Compress>* solver, double (*pb)(const std::vector<TToporLitVal>))
+		TToporReturnVal polosat(CTopor<TLit, TUInd, Compress>* solver, double (*pb)(const std::vector<TToporLitVal>), bool anytime)
 		{
 			TToporReturnVal ret = solver->Solve();
 			if (ret == TToporReturnVal::RET_UNSAT)
 			{
-				throw std::logic_error("Cannot optimize with UNSAT formula!");
+				return ret;
 			}
 			std::vector<TToporLitVal> currentAssignment = solver->GetModel();
 			bool isGoodEpoch = true;
@@ -26,7 +26,8 @@ namespace Topor
 			{
 				std::deque<TLit> satLits = getSatLits<TLit>(currentAssignment);
 				isGoodEpoch = false;
-				if (!AnytimeContinue(pb(currentAssignment)))
+				PrintModel<TLit>(currentAssignment);
+				if (anytime && !AnytimeContinue(pb(currentAssignment)))
 					break;
 
 				while (!satLits.empty())
@@ -35,7 +36,7 @@ namespace Topor
 					satLits.pop_front();
 					for (TLit v = 1; v < (TLit)currentAssignment.size(); v++)
 					{
-						solver->FixPolarity(currentAssignment[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
+						solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
 					}
 					std::vector<TLit> litAssump = { -1 * l };
 					TToporReturnVal ret = solver->Solve(litAssump);
@@ -52,7 +53,9 @@ namespace Topor
 				}
 			}
 
+			PrintModel<TLit>(currentAssignment);
 			std::cout << "Optimal value: " << pb(currentAssignment) << std::endl;
+			return ret;
 		}
 	protected:
 		template <typename TLit>
@@ -64,6 +67,17 @@ namespace Topor
 				satLits.push_back(model[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v);
 			}
 			return satLits;
+		}
+
+		template <typename TLit>
+		void PrintModel(std::vector<TToporLitVal> model)
+		{
+			std::cout << "v ";
+			for (TLit v = 1; v < (TLit)model.size(); v++)
+			{
+				std::cout << (model[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v) << " ";
+			}
+			std::cout << std::endl;
 		}
 
 		bool AnytimeContinue(double pbVal)
