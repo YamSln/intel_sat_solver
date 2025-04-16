@@ -57,6 +57,9 @@
     <ClCompile Include="TopiInprocess.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ToporCardinality.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BasicMemoryUsage.h">
@@ -112,6 +115,9 @@
     </ClInclude>
     <ClInclude Include="TopiStatistics.hpp">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ToporCardinality.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

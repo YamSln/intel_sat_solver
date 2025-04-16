@@ -41,7 +41,7 @@ void CTopor<TLit,TUInd,Compress>::AddClause(const span<TLit> c)
 template <typename TLit, typename TUInd, bool Compress>
 void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> lits, CardinalityPredicate cp, uint64_t k)
 {
-	CToporCardinality ce(CCEncoding::TOTALIZER);
+	CToporCardinality<TLit> ce(CCEncoding::TOTALIZER);
 	vector<vector<TLit>> clauses = ce.encode(lits, cp, k, GetMaxUserVar());
 	for (span<TLit> clause : clauses)
 	{

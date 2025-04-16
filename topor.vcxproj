@@ -133,6 +133,7 @@
     <ClCompile Include="TopiRestart.cc" />
     <ClCompile Include="TopiWL.cc" />
     <ClCompile Include="Topor.cc" />
+    <ClCompile Include="ToporCardinality.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BasicMemoryUsage.h" />
@@ -149,6 +150,7 @@
     <ClInclude Include="TopiStatistics.hpp" />
     <ClInclude Include="TopiVarScores.hpp" />
     <ClInclude Include="Topor.hpp" />
+    <ClInclude Include="ToporCardinality.hpp" />
     <ClInclude Include="ToporDynArray.hpp" />
     <ClInclude Include="ToporExternalTypes.hpp" />
     <ClInclude Include="ToporVector.hpp" />
