@@ -23,7 +23,7 @@ namespace Topor
 		CCEncoding encoding;
 		/* Totalizer */
 		
-		int32_t TotalizerEncode(const std::vector<TLit> inVars, const std::vector<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC, std::vector<std::vector<TLit>>& cls);
+		std::pair<int32_t, int32_t> TotalizerEncode(const std::vector<TLit> inVars, const std::vector<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC, std::vector<std::vector<TLit>>& cls);
 		std::vector<std::vector<TLit>> ComparatorEncode(const std::vector<TLit> outVars, CardinalityPredicate cp, uint64_t k);
 		
 		/* ********* */

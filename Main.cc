@@ -926,7 +926,7 @@ int main(int argc, char** argv)
 		return retValBasedOnLatestSolve;
 	};
 
-	vector<char*> cardinalityConstraintLines;
+	vector<string> cardinalityConstraintLines;
 
 	while (ReadLine(f, line, maxSz) != nullptr)
 	{
@@ -1357,14 +1357,9 @@ int main(int argc, char** argv)
 			continue;
 		}
 
-		
-
-		
-
 		if (line[currLineI] == 'd')
 		{
-			char* ccLine = new char[strlen(line) + 1];
-			strcpy(ccLine, line);
+			string ccLine = line;
 			cardinalityConstraintLines.push_back(ccLine);
 			continue;
 		}
@@ -1384,10 +1379,12 @@ int main(int argc, char** argv)
 	}
 
 	free(line);
-
-	for (char* ccLine : cardinalityConstraintLines)
+	
+	int cc = 0;
+	for (string ccLine : cardinalityConstraintLines)
 	{
-		const size_t len = strlen(ccLine);
+		cc++;
+		const size_t len = ccLine.size();
 		size_t currLineI = 0;
 		auto SkipWhitespaces = [&]()
 		{
@@ -1396,6 +1393,7 @@ int main(int argc, char** argv)
 				++currLineI;
 			}
 		};
+		
 		SkipWhitespaces();
 		++currLineI;
 		SkipWhitespaces();
@@ -1505,6 +1503,7 @@ int main(int argc, char** argv)
 
 			return make_pair(errorString, pred);
 		};
+
 		auto [errStringPred, cp] = ParsePredicate();
 		if (!errStringPred.empty())
 		{
@@ -1527,9 +1526,7 @@ int main(int argc, char** argv)
 			cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
 			return BadRetVal;
 		}
-
 		ToporAddCardinalityConstraint(cardLits, cp, k);
-		free(ccLine);
 	}
 
 	if (!AllToporsNull() && ToporGetSolveInvs() == 0)

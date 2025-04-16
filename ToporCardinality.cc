@@ -18,7 +18,7 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 			{
 			case CardinalityPredicate::LEQ:
 				if (k == 1)
-					break;
+					return { };
 			case CardinalityPredicate::LT:
 				return { { -1 * lits[0] } };
 			case CardinalityPredicate::EQ:
@@ -27,11 +27,11 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 				return { { lits[0] } };
 			case CardinalityPredicate::GEQ:
 				if (k != 1)
-					break;
+					return { };
 			case CardinalityPredicate::GT:
 				return { { lits[0] } };
 			default:
-				return { { 0 } };
+				return { };
 			}
 		}
 		else
@@ -44,16 +44,17 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 				outVars.push_back(v);
 			}
 			std::vector<std::vector<TLit>> clauses;
-			TotalizerEncode(lits, outVars, lits.size(), 0, currentLink + lits.size(), clauses);
+			TotalizerEncode(lits, outVars, outVars.size(), 0, currentLink + lits.size(), clauses);
 			std::vector<std::vector<TLit>> comparator = ComparatorEncode(outVars, cp, k);
 			clauses.insert(clauses.end(), comparator.begin(), comparator.end());
+			
 			return clauses;
 		}
 	}
 }
 
 template <typename TLit>
-int32_t CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, const vector<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC, vector<vector<TLit>>& cls)
+pair<int32_t, int32_t> CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, const vector<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC, vector<vector<TLit>>& cls)
 {
 	int leftSize = rootSize / 2;
 	int rightSize = rootSize - rootSize / 2;
@@ -70,7 +71,9 @@ int32_t CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, cons
 			leftLinks.push_back(currentLinkC);
 			++currentLinkC;
 		}
-		currentInputI = TotalizerEncode(inVars, leftLinks, leftSize, currentInputI, currentLinkC, cls);
+		auto [input, link] = TotalizerEncode(inVars, leftLinks, leftSize, currentInputI, currentLinkC, cls);
+		currentInputI = input;
+		currentLinkC = link;
 	}
 	if (rightSize == 1)
 	{
@@ -84,7 +87,9 @@ int32_t CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, cons
 			rightLinks.push_back(currentLinkC);
 			++currentLinkC;
 		}
-		currentInputI = TotalizerEncode(inVars, rightLinks, rightSize, currentInputI, currentLinkC, cls);
+		auto [input, link] = TotalizerEncode(inVars, rightLinks, rightSize, currentInputI, currentLinkC, cls);
+		currentInputI = input;
+		currentLinkC = link;
 	}
 
 	std::vector<TLit> c1, c2;
@@ -114,7 +119,7 @@ int32_t CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, cons
 			c2.clear();
 		}
 	}
-	return currentInputI;
+	return { currentInputI, currentLinkC };
 }
 
 template <typename TLit>

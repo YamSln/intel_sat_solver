@@ -304,7 +304,7 @@ int main(int argc, char **argv)
       {
         const char *pred = pickPred();
         int k = pickK(lits, pred);
-        printf("%s %d ", "<=", lits);
+        printf("%s %d ", pred, k);
       }
       printf("0\n");
       for (k = 0; k < l; k++)
