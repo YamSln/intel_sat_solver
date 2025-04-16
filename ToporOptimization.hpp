@@ -4,59 +4,17 @@
 #include <deque>
 #include <iostream>
 
+#include "Topor.hpp"
 #include "ToporExternalTypes.hpp"
 
 namespace Topor
 {
+	template <typename TLit = int32_t, typename TUInd = uint32_t, bool Compress = false>
 	class CToporOptimization
 	{
 	public:
-		template <typename TLit, typename TUInd, bool Compress>
-		TToporReturnVal polosat(CTopor<TLit, TUInd, Compress>* solver, double (*pb)(const std::vector<TToporLitVal>), bool anytime)
-		{
-			TToporReturnVal ret = solver->Solve();
-			if (ret == TToporReturnVal::RET_UNSAT)
-			{
-				return ret;
-			}
-			std::vector<TToporLitVal> currentAssignment = solver->GetModel();
-			bool isGoodEpoch = true;
-
-			while (isGoodEpoch)
-			{
-				std::deque<TLit> satLits = getSatLits<TLit>(currentAssignment);
-				isGoodEpoch = false;
-				PrintModel<TLit>(currentAssignment);
-				if (anytime && !AnytimeContinue(pb(currentAssignment)))
-					break;
-
-				while (!satLits.empty())
-				{
-					TLit l = satLits.front();
-					satLits.pop_front();
-					for (TLit v = 1; v < (TLit)currentAssignment.size(); v++)
-					{
-						solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
-					}
-					std::vector<TLit> litAssump = { -1 * l };
-					TToporReturnVal ret = solver->Solve(litAssump);
-					if (ret == TToporReturnVal::RET_SAT)
-					{
-						std::vector<TToporLitVal> newAssignment = solver->GetModel();
-						if (pb(newAssignment) < pb(currentAssignment))
-						{
-							currentAssignment = newAssignment;
-							isGoodEpoch = true;
-							satLits = getSatLits<TLit>(currentAssignment);
-						}
-					}
-				}
-			}
-
-			PrintModel<TLit>(currentAssignment);
-			std::cout << "Optimal value: " << pb(currentAssignment) << std::endl;
-			return ret;
-		}
+		TToporReturnVal polosat(CTopor<TLit, TUInd, Compress>* solver, double (*pb)(const std::vector<TToporLitVal>), bool anytime = false);
+		
 	protected:
 		template <typename TLit>
 		std::deque<TLit> getSatLits(std::vector<TToporLitVal> model)

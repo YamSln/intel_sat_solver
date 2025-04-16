@@ -1388,8 +1388,21 @@ int main(int argc, char** argv)
 			auto ToporBlackBoxOptimization = [&](double (*pb)(const std::vector<TToporLitVal>), bool anytime)
 			{
 				assert(!AllToporsNull());
-				CToporOptimization opt;
-				return topor32 ? opt.polosat(topor32, pb, anytime) : topor64 ? opt.polosat(topor64, pb, anytime) : opt.polosat(toporc, pb, anytime);
+				if (topor32)
+				{
+					CToporOptimization<TLit, uint32_t, false> opt;
+					return opt.polosat(topor32, pb, anytime);
+				}
+				else if (topor64)
+				{
+					CToporOptimization<TLit, uint64_t, false> opt;
+					return opt.polosat(topor64, pb, anytime);
+				}
+				else
+				{
+					CToporOptimization<TLit, uint64_t, true> opt;
+					return opt.polosat(toporc, pb, anytime);
+				}
 			};
 
 			TToporReturnVal ret = ToporBlackBoxOptimization(pb, true);
