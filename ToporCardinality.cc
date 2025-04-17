@@ -1,5 +1,7 @@
 #include "ToporCardinality.hpp"
 
+#include <stack>
+#include <iostream>
 #include <cassert>
 
 using namespace Topor;
@@ -38,14 +40,14 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 		{
 			assert(lits.size() > 1);
 			TLit currentLink = maxVar + 1;
-			std::vector<TLit> outVars;
-			for (int v = currentLink; v < currentLink + lits.size(); v++)
+			vector<TLit> outVars;
+			for (TLit v = currentLink; v < currentLink + (TLit)lits.size(); v++)
 			{
 				outVars.push_back(v);
 			}
-			std::vector<std::vector<TLit>> clauses;
-			TotalizerEncode(lits, outVars, outVars.size(), 0, currentLink + lits.size(), clauses);
-			std::vector<std::vector<TLit>> comparator = ComparatorEncode(outVars, cp, k);
+			
+			vector<vector<TLit>> clauses = TotalizerEncode(lits, outVars, currentLink + lits.size());
+			vector<vector<TLit>> comparator = ComparatorEncode(outVars, cp, k);
 			clauses.insert(clauses.end(), comparator.begin(), comparator.end());
 			
 			return clauses;
@@ -54,72 +56,83 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 }
 
 template <typename TLit>
-pair<int32_t, int32_t> CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, const vector<TLit> rootLinks, int32_t rootSize, int32_t currentInputI, int32_t currentLinkC, vector<vector<TLit>>& cls)
+vector<vector<TLit>> CToporCardinality<TLit>::TotalizerEncode(const vector<TLit> inVars, const vector<TLit> outVars, int32_t currentLinkC)
 {
-	int leftSize = rootSize / 2;
-	int rightSize = rootSize - rootSize / 2;
-	std::vector<TLit> leftLinks, rightLinks;
-	if (leftSize == 1)
+	vector<vector<TLit>> clauses;
+	stack<vector<TLit>> linkVarsNodes;
+	vector<TLit> leftLinkVars, rightLinkVars;
+	int currentInputI = 0;
+	vector<TLit> c1, c2;
+	
+	linkVarsNodes.push(outVars);
+
+	while (!linkVarsNodes.empty())
 	{
-		leftLinks.push_back(inVars[currentInputI]);
-		++currentInputI;
-	}
-	else
-	{
-		for (int v = 0; v < leftSize; v++)
+		vector<TLit> rootLinkVars = linkVarsNodes.top();
+		linkVarsNodes.pop();
+		int rootSize = rootLinkVars.size();
+		int leftSize = rootSize / 2;
+		int rightSize = rootSize - rootSize / 2;
+		if (leftSize == 1)
 		{
-			leftLinks.push_back(currentLinkC);
-			++currentLinkC;
+			leftLinkVars.push_back(inVars[currentInputI]);
+			currentInputI++;
 		}
-		auto [input, link] = TotalizerEncode(inVars, leftLinks, leftSize, currentInputI, currentLinkC, cls);
-		currentInputI = input;
-		currentLinkC = link;
-	}
-	if (rightSize == 1)
-	{
-		rightLinks.push_back(inVars[currentInputI]);
-		++currentInputI;
-	}
-	else
-	{
-		for (int v = 0; v < rightSize; v++)
+		else
 		{
-			rightLinks.push_back(currentLinkC);
-			++currentLinkC;
+			for (int v = 0; v < leftSize; v++)
+			{
+				leftLinkVars.push_back(currentLinkC);
+				currentLinkC++;
+			}
+			linkVarsNodes.push(leftLinkVars);
 		}
-		auto [input, link] = TotalizerEncode(inVars, rightLinks, rightSize, currentInputI, currentLinkC, cls);
-		currentInputI = input;
-		currentLinkC = link;
+		if (rightSize == 1)
+		{
+			rightLinkVars.push_back(inVars[currentInputI]);
+			currentInputI++;
+		}
+		else
+		{
+			for (int v = 0; v < rightSize; v++)
+			{
+				rightLinkVars.push_back(currentLinkC);
+				currentLinkC++;
+			}
+			linkVarsNodes.push(rightLinkVars);
+		}
+
+		for (int a = 0; a < leftSize + 1; a++)
+		{
+			for (int b = 0; b < rightSize + 1; b++)
+			{
+				if (0 < a + b)
+				{
+					if (a > 0)
+						c1.push_back(-1 * leftLinkVars[a - 1]);
+					if (b > 0)
+						c1.push_back(-1 * rightLinkVars[b - 1]);
+					c1.push_back(rootLinkVars[a + b - 1]);
+					clauses.push_back(c1);
+				}
+				if (a + b < rootSize)
+				{
+					if (a < leftSize)
+						c2.push_back(leftLinkVars[a]);
+					if (b < rightSize)
+						c2.push_back(rightLinkVars[b]);
+					c2.push_back(-1 * rootLinkVars[a + b]);
+					clauses.push_back(c2);
+				}
+				c1.clear();
+				c2.clear();
+			}
+		}
+		leftLinkVars.clear();
+		rightLinkVars.clear();
 	}
 
-	std::vector<TLit> c1, c2;
-	for (int a = 0; a < leftSize + 1; a++)
-	{
-		for (int b = 0; b < rightSize + 1; b++)
-		{
-			if (0 < a + b)
-			{
-				if (a > 0)
-					c1.push_back(-1 * leftLinks[a - 1]);
-				if (b > 0)
-					c1.push_back(-1 * rightLinks[b - 1]);
-				c1.push_back(rootLinks[a + b - 1]);
-				cls.push_back(c1);
-			}
-			if (a + b < rootSize)
-			{
-				if (a < leftSize)
-					c2.push_back(leftLinks[a]);
-				if (b < rightSize)
-					c2.push_back(rightLinks[b]);
-				c2.push_back(-1 * rootLinks[a + b]);
-				cls.push_back(c2);
-			}
-			c1.clear();
-			c2.clear();
-		}
-	}
-	return { currentInputI, currentLinkC };
+	return clauses;
 }
 
 template <typename TLit>
