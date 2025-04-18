@@ -1385,29 +1385,30 @@ int main(int argc, char** argv)
 	{
 		if (bbOptMode)
 		{
-			auto ToporBlackBoxOptimization = [&](double (*pb)(const std::vector<TToporLitVal>), bool anytime)
+			auto ToporBlackBoxOptimization = [&](function<double(const vector<TToporLitVal>)> pb, bool anytime)
 			{
 				assert(!AllToporsNull());
 				if (topor32)
 				{
 					CToporOptimization<TLit, uint32_t, false> opt;
-					return opt.polosat(topor32, pb, anytime);
+					return opt.Polosat(topor32, pb, anytime);
 				}
 				else if (topor64)
 				{
 					CToporOptimization<TLit, uint64_t, false> opt;
-					return opt.polosat(topor64, pb, anytime);
+					return opt.Polosat(topor64, pb, anytime);
 				}
 				else
 				{
 					CToporOptimization<TLit, uint64_t, true> opt;
-					return opt.polosat(toporc, pb, anytime);
+					return opt.Polosat(toporc, pb, anytime);
 				}
 			};
 
-			TToporReturnVal ret = ToporBlackBoxOptimization(pb, true);
-			if (ret != TToporReturnVal::RET_SAT)
+			auto res = ToporBlackBoxOptimization(pb, true);
+			if (!res)
 			{
+				cout << "Could not optimize in current settings. This is usually the case when the formula loaded into the solver is UNSAT." << endl;
 				return BadRetVal;
 			}
 			retValBasedOnLatestSolve = 10;

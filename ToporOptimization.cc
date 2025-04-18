@@ -4,23 +4,27 @@ using namespace std;
 using namespace Topor;
 
 template <typename TLit, typename TUInd, bool Compress>
-TToporReturnVal CToporOptimization<TLit, TUInd, Compress>::polosat(CTopor<TLit, TUInd, Compress>* solver, double (*pb)(const vector<TToporLitVal>), bool anytime)
+optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, bool anytime)
 {
 	TToporReturnVal ret = solver->Solve();
-	if (ret == TToporReturnVal::RET_UNSAT)
+	if (ret != TToporReturnVal::RET_SAT)
 	{
-		return ret;
+		return nullopt;
 	}
-	std::vector<TToporLitVal> currentAssignment = solver->GetModel();
+	vector<TToporLitVal> currentAssignment = solver->GetModel();
+	double currentValue = pb(currentAssignment);
 	bool isGoodEpoch = true;
 
 	while (isGoodEpoch)
 	{
-		std::deque<TLit> satLits = getSatLits<TLit>(currentAssignment);
+		deque<TLit> satLits = GetSatLits<TLit>(currentAssignment);
 		isGoodEpoch = false;
-		PrintModel<TLit>(currentAssignment);
-		if (anytime && !AnytimeContinue(pb(currentAssignment)))
-			break;
+		if (anytime)
+		{
+			PrintModel(currentAssignment);
+			if (!AnytimeContinue(pb(currentAssignment)))
+				break;
+		}
 
 		while (!satLits.empty())
 		{
@@ -30,24 +34,28 @@ TToporReturnVal CToporOptimization<TLit, TUInd, Compress>::polosat(CTopor<TLit, 
 			{
 				solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
 			}
-			std::vector<TLit> litAssump = { -1 * l };
+			vector<TLit> litAssump = { -1 * l };
 			TToporReturnVal ret = solver->Solve(litAssump);
 			if (ret == TToporReturnVal::RET_SAT)
 			{
-				std::vector<TToporLitVal> newAssignment = solver->GetModel();
-				if (pb(newAssignment) < pb(currentAssignment))
+				vector<TToporLitVal> newAssignment = solver->GetModel();
+				double newValue = pb(newAssignment);
+				if (newValue < currentValue)
 				{
 					currentAssignment = newAssignment;
+					currentValue = newValue;
 					isGoodEpoch = true;
-					satLits = getSatLits<TLit>(currentAssignment);
+					satLits = GetSatLits<TLit>(currentAssignment);
 				}
 			}
 		}
 	}
-
-	PrintModel<TLit>(currentAssignment);
-	std::cout << "Optimal value: " << pb(currentAssignment) << std::endl;
-	return ret;
+	if (anytime)
+	{
+		PrintModel(currentAssignment);
+		cout << "Optimal value: " << pb(currentAssignment) << endl;
+	}
+	return make_pair(currentAssignment, currentValue);
 }
 
 template class Topor::CToporOptimization<int32_t, uint32_t, false>;

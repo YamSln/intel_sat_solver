@@ -3,6 +3,8 @@
 #include <vector>
 #include <deque>
 #include <iostream>
+#include <optional>
+#include <functional>
 
 #include "Topor.hpp"
 #include "ToporExternalTypes.hpp"
@@ -13,11 +15,11 @@ namespace Topor
 	class CToporOptimization
 	{
 	public:
-		TToporReturnVal polosat(CTopor<TLit, TUInd, Compress>* solver, double (*pb)(const std::vector<TToporLitVal>), bool anytime = false);
+		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, bool anytime = false);
 		
 	protected:
 		template <typename TLit>
-		std::deque<TLit> getSatLits(std::vector<TToporLitVal> model)
+		std::deque<TLit> GetSatLits(std::vector<TToporLitVal> model)
 		{
 			std::deque<TLit> satLits;
 			for (TLit v = 1; v < (TLit)model.size(); v++)
@@ -27,7 +29,6 @@ namespace Topor
 			return satLits;
 		}
 
-		template <typename TLit>
 		void PrintModel(std::vector<TToporLitVal> model)
 		{
 			std::cout << "v ";

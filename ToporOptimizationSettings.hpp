@@ -7,7 +7,7 @@
 namespace Topor
 {
 	// The pseudo-boolean function for optimization mode
-	double (*pb)(std::vector<TToporLitVal>) = [](std::vector<TToporLitVal> assignment) -> double
+	double pb(std::vector<TToporLitVal> assignment)
 	{
 		if (assignment[1] == TToporLitVal::VAL_SATISFIED)
 		{
