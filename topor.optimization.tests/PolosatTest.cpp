@@ -166,7 +166,5 @@ TEST_F(ToporOptimizationTest, XORLogicRewarded) {
 
 	auto [model, value] = *res;
 
-	PrintModel(model);
-
 	EXPECT_EQ(value, 1);
 }
