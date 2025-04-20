@@ -15,11 +15,9 @@
 #endif
 
 #define MAX 20
-// #define NUM_PREDS 5
-#define NUM_PREDS 2
+#define NUM_PREDS 5
 
-// static const char *const PREDS[] = {"<", "<=", "=", ">=", ">"};
-static const char *const PREDS[] = {">=", ">"};
+static const char *const PREDS[] = {"<", "<=", "=", ">=", ">"};
 static int clause[MAX + 1];
 
 static int
@@ -49,18 +47,24 @@ pickK(int len, const char *pred)
 {
   if (strcmp(pred, "<") == 0)
   {
-    return pick(1, len + 1);
+    return pick((len + 1) / 2, len + 1);
   }
-  else if (strcmp(pred, "<=") == 0 ||
-           strcmp(pred, "=") == 0 ||
-           strcmp(pred, "==") == 0 ||
-           strcmp(pred, ">=") == 0)
+  else if (strcmp(pred, "<=") == 0)
+  {
+    return pick(len / 2, len);
+  }
+  else if (strcmp(pred, "=") == 0 ||
+           strcmp(pred, "==") == 0)
   {
     return pick(0, len);
   }
+  else if (strcmp(pred, ">=") == 0)
+  {
+    return pick(0, len / 3);
+  }
   else if (strcmp(pred, ">") == 0)
   {
-    return pick(0, len - 1);
+    return pick(0, (len - 1) / 3);
   }
 }
 
