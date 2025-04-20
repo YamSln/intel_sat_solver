@@ -18,7 +18,6 @@ namespace Topor
 		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, bool anytime = false);
 		
 	protected:
-		template <typename TLit>
 		std::deque<TLit> GetSatLits(std::vector<TToporLitVal> model)
 		{
 			std::deque<TLit> satLits;

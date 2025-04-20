@@ -17,7 +17,7 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 
 	while (isGoodEpoch)
 	{
-		deque<TLit> satLits = GetSatLits<TLit>(currentAssignment);
+		deque<TLit> satLits = GetSatLits(currentAssignment);
 		isGoodEpoch = false;
 		if (anytime)
 		{
@@ -45,7 +45,7 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 					currentAssignment = newAssignment;
 					currentValue = newValue;
 					isGoodEpoch = true;
-					satLits = GetSatLits<TLit>(currentAssignment);
+					satLits = GetSatLits(currentAssignment);
 				}
 			}
 		}
