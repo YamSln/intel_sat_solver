@@ -15,8 +15,16 @@ namespace Topor
 	class CToporOptimization
 	{
 	public:
-		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, bool anytime = false);
-		std::optional<std::pair<std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, bool anytime = false);
+		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> assumps = {},  bool anytime = false);
+		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, bool anytime)
+		{
+			return Polosat(solver, pb, {}, anytime);
+		}
+		std::optional<std::pair<std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, std::vector<TLit> assumps = {}, bool anytime = false);
+		std::optional<std::pair<std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, bool anytime)
+		{
+			return StrictlyMonotonePolosat(solver, pb, obs, {}, anytime);
+		}
 		
 	protected:
 		std::deque<TLit> GetSatLits(std::vector<TToporLitVal> model)
