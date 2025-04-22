@@ -10,7 +10,7 @@ solver_directory = 'x64\\Release'
 solver_name = 'topor.exe'
 fuzzer_directory = 'third_party\\cnfuzzdd2013'
 fuzzer_name = 'cnfuzz_card.exe'
-run_duration_sec = 60
+run_duration_sec = 600
 
 def get_relative(directory_name):
     return os.path.join('..', directory_name)
@@ -71,7 +71,9 @@ def print_stats(stats):
     print(f'{'*' * 10} STATS {'*' * 10}')
     print(f'Solver: {solver} | Fuzzer: {fuzzer}')
     print(f'Run duration (sec): {round(stats["END"] - stats["START"], 2)}')
+    print(f'Total number of iterations: {stats["ITERATIONS"]}')
     print(f'SAT / UNSAT Ratio: {stats["SAT"]}/{stats["UNSAT"]}.')
+    print(f'Average number of cardinality constraints (SAT): {round(stats["AVG_CARD"], 2)}')
     print(f'The solver returned {stats["ERROR"]} times with an error.')
     print()
     
@@ -80,26 +82,28 @@ if __name__ == '__main__':
     
     solver = get_relative(f'{solver_directory}\\{solver_name}')
     fuzzer = get_relative(f'{fuzzer_directory}\\{fuzzer_name}')
-    key_pressed = False
+    stop = False
 
     def wait_for_keypress():
-        global key_pressed
+        global stop
         while True:
             if msvcrt.kbhit():
-                key_pressed = True
-                break
+                key = msvcrt.getch()
+                if key == b'\x1b': # ESC
+                    stop = True
+                    break
 
     listener_thread = threading.Thread(target=wait_for_keypress)
     listener_thread.daemon = True
     listener_thread.start()
     
-    stats = {"SAT": 0, "UNSAT": 0, "ERROR": 0, "START": 0, "END": 0}
+    stats = {"ITERATIONS": 0, "SAT": 0, "UNSAT": 0, "ERROR": 0, "AVG_CARD": 0, "START": 0, "END": 0}
     start_time = time.time()
     stats["START"] = start_time
     print (f'Fuzzing loop started, duration: {run_duration_sec} sec.')
     while True:
-        if key_pressed:
-            print("Key was pressed! Exiting fuzzing loop.")
+        if stop:
+            print("Esc was pressed! Exiting fuzzing loop.")
             stats["END"] = time.time()
             break
         if time.time() - start_time > run_duration_sec:
@@ -112,6 +116,7 @@ if __name__ == '__main__':
             result = subprocess.run(f'{solver} {temp_file.name}', capture_output=True, text=True)
             assignment = get_assignment_from_result(result.stdout.splitlines())
             constraints = read_cardinality_constraints_from_file(temp_file.name)
+            stats["ITERATIONS"] += 1
             if assignment == "UNSAT":
                 stats["UNSAT"] += 1
                 # print("UNSAT")
@@ -121,6 +126,7 @@ if __name__ == '__main__':
                 # print("ERROR")
                 continue
             stats["SAT"] += 1
+            stats["AVG_CARD"] += (len(constraints) - stats["AVG_CARD"]) / stats["SAT"]
             for i, constraint in enumerate(constraints):
                 if not check_sat(assignment, vars=constraint['vars'], predicate=constraint['pred'], k=constraint['k']):
                     print(f'Constraint number {i+1} is not satisfied!')
