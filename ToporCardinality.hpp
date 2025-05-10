@@ -31,12 +31,12 @@ namespace Topor
 	public:
 		CToporCardinality(CCEncoding encoding) : encoding(encoding) {}
 
-		std::vector<std::vector<TLit>> encode(std::span<TLit> lits, CardinalityPredicate cp, uint64_t k, TLit maxVar)
+		std::vector<std::vector<TLit>> encode(std::span<TLit> lits, CardinalityPredicate cp, uint64_t k, TLit nextAvailableVar)
 		{
 			std::vector<TLit> lts(lits.begin(), lits.end());
-			return encode(lts, cp, k, maxVar);
+			return encode(lts, cp, k, nextAvailableVar);
 		}
 
-		std::vector<std::vector<TLit>> encode(std::vector<TLit> lits, CardinalityPredicate cp, uint64_t k, TLit maxVar);
+		std::vector<std::vector<TLit>> encode(std::vector<TLit> lits, CardinalityPredicate cp, uint64_t k, TLit nextAvailableVar);
 	};
 }

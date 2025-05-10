@@ -42,6 +42,7 @@ class WordDelimitedBy : public std::string
 namespace fs = std::filesystem;
 
 #include "Topor.hpp"
+#include "ToporVarMap.hpp"
 
 using namespace std;
 using namespace Topor;
@@ -103,6 +104,8 @@ static array<pair<string, string>, U(TArchiveFileType::None)> commandStringBefor
 
 static constexpr int BadRetVal = -1;
 using TLit = int32_t;
+VarMap<TLit> variablesMapping;
+TLit maxAvailableVar = 0;
 
 template <typename TTopor>
 int OnFinishingSolving(TTopor& topor, TToporReturnVal ret, bool printModel, bool printUcore, const std::span<TLit> assumps = {}, vector<TLit>* varsToPrint = nullptr)
@@ -122,19 +125,34 @@ int OnFinishingSolving(TTopor& topor, TToporReturnVal ret, bool printModel, bool
 		cout << "s SATISFIABLE" << endl;
 		if (printModel)
 		{
+			auto PrintVarByLitVal = [&](TLit v, TToporLitVal vVal)
+			{
+				assert(vVal != TToporLitVal::VAL_UNASSIGNED);
+				cout << " " << (vVal != TToporLitVal::VAL_UNSATISFIED ? v : -v);
+			};
+
 			auto PrintVal = [&](TLit v)
 			{
 				const auto vVal = topor.GetLitValue(v);
-				assert(vVal != TToporLitVal::VAL_UNASSIGNED);
-				cout << " " << (vVal != TToporLitVal::VAL_UNSATISFIED ? v : -v);
+				PrintVarByLitVal(v, vVal);
+			};
+
+			auto PrintMappedVal = [&](TLit v)
+			{
+				const auto vVal = variablesMapping.MappingExists(v) ? topor.GetLitValue(variablesMapping.GetUserVar(v)) : TToporLitVal::VAL_DONT_CARE;
+				PrintVarByLitVal(v, vVal);
 			};
 
 			cout << "v";
 			if (!varsToPrint)
 			{
-				for (TLit v = 1; v <= topor.GetMaxUserVar(); ++v)
+				auto maxVar = variablesMapping.GetMaxMappedFileVar();
+				if (maxVar != nullopt)
 				{
-					PrintVal(v);
+					for (TLit v = 1; v <= maxVar; ++v)
+					{
+						PrintMappedVal(v);
+					}
 				}
 			}
 			else
@@ -432,12 +450,6 @@ int main(int argc, char** argv)
 		topor32 ? topor32->AddClause(c) : topor64 ? topor64->AddClause(c) : toporc->AddClause(c);
 	};
 
-	auto ToporAddCardinalityConstraint = [&](const span<TLit> c, CardinalityPredicate cp, uint32_t k)
-	{
-		assert(!AllToporsNull());
-		topor32 ? topor32->AddCardinalityConstraint(c, cp, k) : topor64 ? topor64->AddCardinalityConstraint(c, cp, k) : toporc->AddCardinalityConstraint(c, cp, k);
-	};
-
 	auto ToporGetSolveInvs = [&]()
 	{
 		assert(!AllToporsNull());
@@ -453,6 +465,25 @@ int main(int argc, char** argv)
 	{
 		assert(!AllToporsNull());
 		return topor32 ? topor32->IsAssumptionRequired(assumpInd) : topor64 ? topor64->IsAssumptionRequired(assumpInd) : toporc->IsAssumptionRequired(assumpInd);
+	};
+
+	auto ToporGetNextAvailableVar = [&]()
+	{
+		assert(!AllToporsNull());
+		return topor32 ? topor32->GetNextAvailableVar() : topor64 ? topor64->GetNextAvailableVar() : toporc->GetNextAvailableVar();
+	};
+
+	auto ToporGetNextAvailableVarInc = [&]()
+	{
+		TLit maxVar = ToporGetNextAvailableVar();
+		maxAvailableVar = maxAvailableVar >= maxVar ? (maxAvailableVar + 1) : maxVar;
+		return maxAvailableVar;
+	};
+
+	auto ToporAddCardinalityConstraint = [&](const span<TLit> c, CardinalityPredicate cp, uint32_t k)
+	{
+		assert(!AllToporsNull());
+		topor32 ? topor32->AddCardinalityConstraint(c, cp, k) : topor64 ? topor64->AddCardinalityConstraint(c, cp, k) : toporc->AddCardinalityConstraint(c, cp, k);
 	};
 
 	TToporReturnVal ret = TToporReturnVal::RET_EXOTIC_ERROR;
@@ -926,7 +957,31 @@ int main(int argc, char** argv)
 		return retValBasedOnLatestSolve;
 	};
 
-	vector<string> cardinalityConstraintLines;
+	auto MapFileVarToUserVar = [&](TLit var)
+	{
+		if (var == 0)
+		{
+			return var;
+		}
+		if (variablesMapping.MappingExists(var))
+		{
+			return variablesMapping.GetUserVar(var);
+		}
+		return variablesMapping.Insert(var, ToporGetNextAvailableVarInc());
+	};
+
+	auto MapFileLitsToUserLits = [&](vector<TLit> lits)
+	{
+		vector<TLit> mappedLits;
+		mappedLits.reserve(lits.size());
+		for (TLit lit : lits)
+		{
+			TLit var = lit < 0 ? -lit : lit;
+			TLit mappedVar = MapFileVarToUserVar(var);
+			mappedLits.push_back(lit < 0 ? -mappedVar : mappedVar);
+		}
+		return mappedLits;
+	};
 
 	while (ReadLine(f, line, maxSz) != nullptr)
 	{
@@ -1350,6 +1405,7 @@ int main(int argc, char** argv)
 				return BadRetVal;
 			}
 
+			assumps = MapFileLitsToUserLits(assumps);
 			if (Solve(&assumps) == BadRetVal)
 			{
 				return BadRetVal;
@@ -1359,8 +1415,104 @@ int main(int argc, char** argv)
 
 		if (line[currLineI] == 'd')
 		{
-			string ccLine = line;
-			cardinalityConstraintLines.push_back(ccLine);
+			++currLineI;
+			SkipWhitespaces();
+
+			auto ParseCardinalityLits = [&]()
+			{
+				string errorString = "";
+
+				lits.clear();
+
+				long long currLit = numeric_limits<long long>::max();
+				while (currLit != 0)
+				{
+					try
+					{
+						currLit = ParseNumber();
+						if (currLit > numeric_limits<TLit>::max() || currLit < numeric_limits<TLit>::min())
+						{
+							errorString = "c topor_tool ERROR: the literal " + to_string(currLit) + " is too big or too small\n";
+							lits.clear();
+							break;
+						}
+						lits.push_back(TLit(currLit));
+					}
+					catch (...)
+					{
+						if (line[currLineI] != '<' &&
+							line[currLineI] != '=' &&
+							line[currLineI] != '>')
+						{
+							errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+						}
+						break;
+					}
+				}
+
+				return make_pair(errorString, lits);
+			};
+			auto [errStringLits, cardLits] = ParseCardinalityLits();
+			if (!errStringLits.empty())
+			{
+				cout << errStringLits;
+				return BadRetVal;
+			}
+
+			auto ParsePredicate = [&]()
+			{
+				CardinalityPredicate pred;
+				string errorString = "";
+
+				char predicate = line[currLineI++];
+				bool containsEquality = line[currLineI] == '=';
+
+				if (containsEquality)
+					++currLineI;
+
+				switch (predicate)
+				{
+				case '<':
+					pred = containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
+					break;
+				case '=':
+					pred = CardinalityPredicate::EQ;
+					break;
+				case '>':
+					pred = containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
+					break;
+				default:
+					errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
+					break;
+				}
+
+				return make_pair(errorString, pred);
+			};
+
+			auto [errStringPred, cp] = ParsePredicate();
+			if (!errStringPred.empty())
+			{
+				cout << errStringPred;
+				return BadRetVal;
+			}
+
+			auto k = ParseNumber();
+			if (k < 0)
+			{
+				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a negative right hand side\n";
+				return BadRetVal;
+			}
+
+			if (cp == CardinalityPredicate::LT && k == 0 ||
+				cp == CardinalityPredicate::EQ && k > cardLits.size() ||
+				cp == CardinalityPredicate::GEQ && k > cardLits.size() ||
+				cp == CardinalityPredicate::GT && k >= cardLits.size())
+			{
+				cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
+				return BadRetVal;
+			}
+			cardLits = MapFileLitsToUserLits(cardLits);
+			ToporAddCardinalityConstraint(cardLits, cp, k);
 			continue;
 		}
 
@@ -1375,159 +1527,11 @@ int main(int argc, char** argv)
 		{
 			vmClss.push_back(cls);
 		}
+		cls = MapFileLitsToUserLits(cls);
 		ToporAddClause(cls);
 	}
 
 	free(line);
-	
-	int cc = 0;
-	for (string ccLine : cardinalityConstraintLines)
-	{
-		cc++;
-		const size_t len = ccLine.size();
-		size_t currLineI = 0;
-		auto SkipWhitespaces = [&]()
-		{
-			while (ccLine[currLineI] == ' ' && currLineI < len)
-			{
-				++currLineI;
-			}
-		};
-		
-		SkipWhitespaces();
-		++currLineI;
-		SkipWhitespaces();
-
-		vector<TLit> lits;
-
-		auto ParseNumber = [&]()
-		{
-			SkipWhitespaces();
-			if (currLineI >= len)
-			{
-				throw logic_error("c topor_tool ERROR: no number after skipping white-spaces at line number " + to_string(lineNum));
-			}
-			bool isNeg = ccLine[currLineI] == '-';
-			if (isNeg)
-			{
-				++currLineI;
-			}
-			if (!isdigit(ccLine[currLineI]))
-			{
-				throw logic_error("c topor_tool ERROR: the first character is expected to be a digit at line number " + to_string(lineNum));
-			}
-
-			long long res = 0;
-
-			while (isdigit(ccLine[currLineI]))
-			{
-				const auto currDigit = ccLine[currLineI++] - '0';
-				res = res * 10 + (long long)(currDigit);
-			}
-
-			if (isNeg)
-			{
-				res = -res;
-			}
-
-			return res;
-		};
-
-		auto ParseCardinalityLits = [&]()
-		{
-			string errorString = "";
-
-			lits.clear();
-
-			long long currLit = numeric_limits<long long>::max();
-			while (currLit != 0)
-			{
-				try
-				{
-					currLit = ParseNumber();
-					if (currLit > numeric_limits<TLit>::max() || currLit < numeric_limits<TLit>::min())
-					{
-						errorString = "c topor_tool ERROR: the literal " + to_string(currLit) + " is too big or too small\n";
-						lits.clear();
-						break;
-					}
-					lits.push_back(TLit(currLit));
-				}
-				catch (...)
-				{
-					if (ccLine[currLineI] != '<' &&
-						ccLine[currLineI] != '=' &&
-						ccLine[currLineI] != '>')
-					{
-						errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
-					}
-					break;
-				}
-			}
-
-			return make_pair(errorString, lits);
-		};
-		auto [errStringLits, cardLits] = ParseCardinalityLits();
-		if (!errStringLits.empty())
-		{
-			cout << errStringLits;
-			return BadRetVal;
-		}
-
-		auto ParsePredicate = [&]()
-		{
-			CardinalityPredicate pred;
-			string errorString = "";
-
-			char predicate = ccLine[currLineI++];
-			bool containsEquality = ccLine[currLineI] == '=';
-
-			if (containsEquality)
-				++currLineI;
-
-			switch (predicate)
-			{
-			case '<':
-				pred = containsEquality ? CardinalityPredicate::LEQ : CardinalityPredicate::LT;
-				break;
-			case '=':
-				pred = CardinalityPredicate::EQ;
-				break;
-			case '>':
-				pred = containsEquality ? CardinalityPredicate::GEQ : CardinalityPredicate::GT;
-				break;
-			default:
-				errorString = "c topor_tool ERROR: invalid cardinality constraint predicate at line number " + to_string(lineNum) + "\n";
-				break;
-			}
-
-			return make_pair(errorString, pred);
-		};
-
-		auto [errStringPred, cp] = ParsePredicate();
-		if (!errStringPred.empty())
-		{
-			cout << errStringPred;
-			return BadRetVal;
-		}
-
-		auto k = ParseNumber();
-		if (k < 0)
-		{
-			cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " has a negative right hand side\n";
-			return BadRetVal;
-		}
-
-		if (cp == CardinalityPredicate::LT && k == 0 ||
-			cp == CardinalityPredicate::EQ && k > cardLits.size() ||
-			cp == CardinalityPredicate::GEQ && k > cardLits.size() ||
-			cp == CardinalityPredicate::GT && k >= cardLits.size())
-		{
-			cout << "c topor_tool ERROR: cardinality constraint at line number " + to_string(lineNum) + " is a contradiction\n";
-			return BadRetVal;
-		}
-		ToporAddCardinalityConstraint(cardLits, cp, k);
-	}
 
 	if (!AllToporsNull() && ToporGetSolveInvs() == 0)
 	{

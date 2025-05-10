@@ -8,7 +8,7 @@ using namespace Topor;
 using namespace std;
 
 template <typename TLit>
-vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, CardinalityPredicate cp, uint64_t k, TLit maxVar)
+vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, CardinalityPredicate cp, uint64_t k, TLit nextAvailableVar)
 {
 	switch (encoding)
 	{
@@ -22,10 +22,10 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 				if (k == 1)
 					return { };
 			case CardinalityPredicate::LT:
-				return { { -1 * lits[0] } };
+				return { { -lits[0] } };
 			case CardinalityPredicate::EQ:
 				if (k == 0)
-					return { {  -1 * lits[0] } };
+					return { { -lits[0] } };
 				return { { lits[0] } };
 			case CardinalityPredicate::GEQ:
 				if (k != 1)
@@ -39,7 +39,7 @@ vector<vector<TLit>> CToporCardinality<TLit>::encode(vector<TLit> lits, Cardinal
 		else
 		{
 			assert(lits.size() > 1);
-			TLit currentLink = maxVar + 1;
+			TLit currentLink = nextAvailableVar;
 			vector<TLit> outVars;
 			for (TLit v = currentLink; v < currentLink + (TLit)lits.size(); v++)
 			{
@@ -109,11 +109,12 @@ vector<vector<TLit>> CToporCardinality<TLit>::TotalizerEncode(const vector<TLit>
 				if (0 < a + b)
 				{
 					if (a > 0)
-						c1.push_back(-1 * leftLinkVars[a - 1]);
+						c1.push_back(-leftLinkVars[a - 1]);
 					if (b > 0)
-						c1.push_back(-1 * rightLinkVars[b - 1]);
+						c1.push_back(-rightLinkVars[b - 1]);
 					c1.push_back(rootLinkVars[a + b - 1]);
 					clauses.push_back(c1);
+					c1.clear();
 				}
 				if (a + b < rootSize)
 				{
@@ -121,11 +122,10 @@ vector<vector<TLit>> CToporCardinality<TLit>::TotalizerEncode(const vector<TLit>
 						c2.push_back(leftLinkVars[a]);
 					if (b < rightSize)
 						c2.push_back(rightLinkVars[b]);
-					c2.push_back(-1 * rootLinkVars[a + b]);
+					c2.push_back(-rootLinkVars[a + b]);
 					clauses.push_back(c2);
+					c2.clear();
 				}
-				c1.clear();
-				c2.clear();
 			}
 		}
 		leftLinkVars.clear();
@@ -144,13 +144,13 @@ vector<vector<TLit>> CToporCardinality<TLit>::ComparatorEncode(const vector<TLit
 	case CardinalityPredicate::LT:
 		for (uint64_t j = k - 1; j < outVars.size(); j++)
 		{
-			cls.push_back({ -1 * outVars[j] });
+			cls.push_back({ -outVars[j] });
 		}
 		break;
 	case CardinalityPredicate::LEQ:
 		for (uint64_t j = k; j < outVars.size(); j++)
 		{
-			cls.push_back({ -1 * outVars[j] });
+			cls.push_back({ -outVars[j] });
 		}
 		break;
 	case CardinalityPredicate::EQ:
@@ -160,7 +160,7 @@ vector<vector<TLit>> CToporCardinality<TLit>::ComparatorEncode(const vector<TLit
 		}
 		for (uint64_t j = k; j < outVars.size(); j++)
 		{
-			cls.push_back({ -1 * outVars[j] });
+			cls.push_back({ -outVars[j] });
 		}
 		break;
 	case CardinalityPredicate::GEQ:

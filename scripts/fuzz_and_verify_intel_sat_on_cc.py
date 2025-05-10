@@ -10,7 +10,9 @@ solver_directory = 'x64\\Release'
 solver_name = 'topor.exe'
 fuzzer_directory = 'third_party\\cnfuzzdd2013'
 fuzzer_name = 'cnfuzz_card.exe'
-run_duration_sec = 600
+run_duration_sec = -1
+
+DEBUG = True
 
 def get_relative(directory_name):
     return os.path.join('..', directory_name)
@@ -106,7 +108,7 @@ if __name__ == '__main__':
             print("Esc was pressed! Exiting fuzzing loop.")
             stats["END"] = time.time()
             break
-        if time.time() - start_time > run_duration_sec:
+        if run_duration_sec != -1 and time.time() - start_time > run_duration_sec:
             print("Timer expired! Exiting fuzzing loop.")
             stats["END"] = time.time()
             break
@@ -119,13 +121,16 @@ if __name__ == '__main__':
             stats["ITERATIONS"] += 1
             if assignment == "UNSAT":
                 stats["UNSAT"] += 1
-                # print("UNSAT")
+                if DEBUG: print("UNSAT")
                 continue
             if assignment == "ERROR":
                 stats["ERROR"] += 1
-                # print("ERROR")
+                if DEBUG: print("ERROR")
                 continue
             stats["SAT"] += 1
+            if DEBUG: 
+                print(f'Num of constraints: {len(constraints)}')
+                print(constraints)
             stats["AVG_CARD"] += (len(constraints) - stats["AVG_CARD"]) / stats["SAT"]
             for i, constraint in enumerate(constraints):
                 if not check_sat(assignment, vars=constraint['vars'], predicate=constraint['pred'], k=constraint['k']):
@@ -137,5 +142,5 @@ if __name__ == '__main__':
                         shutil.copyfileobj(source, dest)
                     print()
                     exit(1)
-        # print("**** Pass ****")
+        if DEBUG: print("**** Pass ****")
     print_stats(stats)

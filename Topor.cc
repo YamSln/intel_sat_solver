@@ -39,17 +39,6 @@ void CTopor<TLit,TUInd,Compress>::AddClause(const span<TLit> c)
 }
 
 template <typename TLit, typename TUInd, bool Compress>
-void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> lits, CardinalityPredicate cp, uint64_t k)
-{
-	CToporCardinality<TLit> ce(CCEncoding::TOTALIZER);
-	vector<vector<TLit>> clauses = ce.encode(lits, cp, k, GetMaxUserVar());
-	for (span<TLit> clause : clauses)
-	{
-		AddClause(clause);
-	}
-}
-
-template <typename TLit, typename TUInd, bool Compress>
 TToporReturnVal CTopor<TLit,TUInd,Compress>::Solve(const span<TLit> assumps, pair<double, bool> toInSecIsCpuTime, uint64_t confThr)
 {
 	return m_Topi->Solve(assumps, toInSecIsCpuTime, confThr);
@@ -221,6 +210,23 @@ template <typename TLit, typename TUInd, bool Compress>
 string CTopor<TLit,TUInd,Compress>::ChangeConfigToGiven(uint16_t configNum)
 {
 	return m_Topi->ChangeConfigToGiven(configNum);
+}
+
+template <typename TLit, typename TUInd, bool Compress>
+TLit CTopor<TLit, TUInd, Compress>::GetNextAvailableVar()
+{
+	return GetMaxUserVar() + 1;
+}
+
+template <typename TLit, typename TUInd, bool Compress>
+void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> lits, CardinalityPredicate cp, uint64_t k)
+{
+	CToporCardinality<TLit> ce(CCEncoding::TOTALIZER);
+	vector<vector<TLit>> clauses = ce.encode(lits, cp, k, GetNextAvailableVar());
+	for (span<TLit> clause : clauses)
+	{
+		AddClause(clause);
+	}
 }
 
 template <typename TLit, typename TUInd, bool Compress>

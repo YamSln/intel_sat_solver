@@ -153,6 +153,7 @@
     <ClInclude Include="ToporCardinality.hpp" />
     <ClInclude Include="ToporDynArray.hpp" />
     <ClInclude Include="ToporExternalTypes.hpp" />
+    <ClInclude Include="ToporVarMap.hpp" />
     <ClInclude Include="ToporVector.hpp" />
     <ClInclude Include="ToporWinAverage.hpp" />
   </ItemGroup>

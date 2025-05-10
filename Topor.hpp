@@ -52,9 +52,6 @@ namespace Topor
 		// Sets the status to permanent error, if the name/value combination is wrong. Run GetErrorStatus for details.
 		void SetParam(const std::string& paramName, double newVal);
 
-		// Add cardinality constraint
-		void AddCardinalityConstraint(const std::span<TLit> lits, CardinalityPredicate cp, uint64_t k);
-		
 		// Boost the score of the variable v by value (the greater the value is, the greater the bump is)
 		void BoostScore(TLit v, double value = 1.0);
 		// Fix the polarity of the variable |l| to l
@@ -118,6 +115,13 @@ namespace Topor
 		std::string GetStatusExplanation() const;
 		// Get the description of the parameters
 		std::string GetParamsDescr() const;		
+
+		// Returns the next available user variable
+		// NOTE: WHEN ADDING CARDINALITY CONSTRAINTS USING THE AddCardinalityConstraint FUNCTION, 
+		// ALL VARIABLES GIVEN TO THE SOLVER MUST BE OBTAINED USING THIS FUNCTION
+		TLit GetNextAvailableVar();
+		// Add cardinality constraint
+		void AddCardinalityConstraint(const std::span<TLit> lits, CardinalityPredicate cp, uint64_t k);
 
 		void SetParallelData(unsigned threadId, std::function<void(unsigned threadId, int lit)> ReportUnitClause, std::function<int(unsigned threadId, bool reinit)> GetNextUnitClause);		
 	protected:
