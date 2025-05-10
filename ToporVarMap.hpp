@@ -10,11 +10,13 @@ namespace Topor
 	{
 	private:
 		std::unordered_map<TLit, TLit> mapping;
+		TLit maxFileVar = 0;
 
 	public:
 		TLit Insert(TLit fileVar, TLit userVar)
 		{
 			mapping[fileVar] = userVar;
+			maxFileVar = std::max(maxFileVar, fileVar);
 			return userVar;
 		}
 
@@ -30,19 +32,7 @@ namespace Topor
 
 		std::optional<TLit> GetMaxMappedFileVar()
 		{
-			if (mapping.empty())
-			{
-				return std::nullopt;
-			}
-			auto maxVarIt = mapping.begin();
-			for (auto it = mapping.begin(); it != mapping.end(); ++it)
-			{
-				if (it->first > maxVarIt->first)
-				{
-					maxVarIt = it;
-				}
-			}
-			return maxVarIt->first;
+			return maxFileVar != 0 ? std::optional{ maxFileVar } : std::nullopt;
 		}
 	};
 }
