@@ -36,6 +36,30 @@ extern "C" void pclose(FILE * pipe);
 #define fileno _fileno
 #endif
 
+#ifdef _WIN32
+#include <Windows.h>
+std::function<BOOL(DWORD)> EXIT_SIG_HANDLER;
+
+static BOOL WINAPI ExitSignalHandler(DWORD signal) 
+{
+	if (EXIT_SIG_HANDLER)
+	{
+		return EXIT_SIG_HANDLER(signal);
+	}
+	return FALSE;
+}
+#else
+#include <signal.h>
+std::function<void(int)> g_signalHandler;
+static void ExitSignalHandler(int signal) 
+{
+	if (g_signalHandler) 
+	{
+		g_signalHandler(signal);
+	}
+}
+#endif
+
 template<char delimiter>
 class WordDelimitedBy : public std::string
 {};
@@ -268,6 +292,8 @@ int OnFinishingOptimizing(TTopor& topor, TToporReturnVal& ret, vector<TToporLitV
 		return BadRetVal;
 	}
 }
+
+
 
 
 
@@ -531,6 +557,11 @@ int main(int argc, char** argv)
 	auto ToporOnFinishedOptimizing = [&](TToporReturnVal& ret, vector<TToporLitVal>& model, double& val)
 	{
 		return topor32 ? OnFinishingOptimizing(*topor32, ret, model, val) : topor64 ? OnFinishingOptimizing(*topor64, ret, model, val) : OnFinishingOptimizing(*toporc, ret, model, val);
+	};
+
+	auto ToporInterruptNow = [&]()
+	{
+		return topor32 ? topor32->InterruptNow() : topor64 ? topor64->InterruptNow() : toporc->InterruptNow();
 	};
 
 	TToporReturnVal ret = TToporReturnVal::RET_EXOTIC_ERROR;
@@ -1479,13 +1510,35 @@ int main(int argc, char** argv)
 				}
 			};
 
+#ifdef _WIN32
+			EXIT_SIG_HANDLER = [&](DWORD signal) -> BOOL
+			{
+				if (signal == CTRL_C_EVENT || signal == CTRL_CLOSE_EVENT)
+				{
+					ToporInterruptNow();
+					return TRUE;
+				}
+				return FALSE;
+			};
+
+			SetConsoleCtrlHandler(ExitSignalHandler, TRUE);
+#else
+			g_signalHandler = [&](int signal)
+			{
+				ToporInterruptNow();
+			};
+
+			signal(SIGINT, ExitSignalHandler);
+			signal(SIGTERM, ExitSignalHandler);
+#endif
+
 			auto res = ToporBlackBoxOptimization(pb);
 			if (!res)
 			{
 				cout << "Could not optimize in current settings. This is usually the case when the formula loaded into the solver is UNSAT." << endl;
 				return BadRetVal;
 			}
-			
+
 			auto& [retVal, model, val] = *res;
 			retValBasedOnLatestSolve = ToporOnFinishedOptimizing(retVal, model, val);
 		}
