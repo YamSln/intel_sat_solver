@@ -20,7 +20,7 @@ protected:
 
 	}
 
-	bool ModelsEqual(vector<TToporLitVal> actual, vector<int> expected)
+	bool ModelsEqual(vector<TToporLitVal>& actual, vector<int>& expected)
 	{
 		for (int i = 1; i < actual.size(); i++)
 		{
@@ -79,8 +79,9 @@ TEST_F(ToporOptimizationTest, ExampleFromSeminar) {
 	auto res = opt.Polosat(&topor, Seminar);
 	ASSERT_TRUE(res);
 
-	auto [model, value] = *res;
+	auto& [retVal, model, value] = *res;
 	vector<int> expectedModel = { 0, 1, 0 };
+	EXPECT_EQ(retVal, TToporReturnVal::RET_SAT);
 	EXPECT_TRUE(ModelsEqual(model, expectedModel));
 	EXPECT_EQ(value, 8);
 }
@@ -104,7 +105,8 @@ TEST_F(ToporOptimizationTest, SumOfSAT) {
 	auto res = opt.Polosat(&topor, SumSAT);
 	ASSERT_TRUE(res);
 
-	auto [model, value] = *res;
+	auto& [retVal, model, value] = *res;
+	EXPECT_EQ(retVal, TToporReturnVal::RET_SAT);
 	EXPECT_EQ(value, 2);
 }
 
@@ -117,7 +119,8 @@ TEST_F(ToporOptimizationTest, SumOfSAT0) {
 	auto res = opt.Polosat(&topor, SumSAT);
 	ASSERT_TRUE(res);
 
-	auto [model, value] = *res;
+	auto& [retVal, model, value] = *res;
+	EXPECT_EQ(retVal, TToporReturnVal::RET_SAT);
 	EXPECT_EQ(value, 0);
 }
 
@@ -138,8 +141,9 @@ TEST_F(ToporOptimizationTest, WeightedVariablePreference) {
 	auto res = opt.Polosat(&topor, WeightedVariables);
 	ASSERT_TRUE(res);
 
-	auto [model, value] = *res;
+	auto& [retVal, model, value] = *res;
 
+	EXPECT_EQ(retVal, TToporReturnVal::RET_SAT);
 	EXPECT_EQ(value, 1);
 	vector<int> expectedModel = { 0, 1, 0 };
 	EXPECT_TRUE(ModelsEqual(model, expectedModel));
@@ -164,7 +168,7 @@ TEST_F(ToporOptimizationTest, XORLogicRewarded) {
 	auto res = opt.Polosat(&topor, XORBehavior);
 	ASSERT_TRUE(res);
 
-	auto [model, value] = *res;
+	auto& [retVal, model, value] = *res;
 
 	EXPECT_EQ(value, 1);
 }

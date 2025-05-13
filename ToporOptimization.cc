@@ -6,7 +6,7 @@ using namespace std;
 using namespace Topor;
 
 template <typename TLit, typename TUInd, bool Compress>
-optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> assumps, bool anytime)
+optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> assumps)
 {
 	TToporReturnVal ret = solver->Solve(assumps);
 	if (ret != TToporReturnVal::RET_SAT)
@@ -21,12 +21,6 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 	{
 		deque<TLit> satLits = GetSatLits(currentAssignment);
 		isGoodEpoch = false;
-		if (anytime)
-		{
-			PrintModel(currentAssignment);
-			if (!AnytimeContinue(pb(currentAssignment)))
-				break;
-		}
 
 		while (!satLits.empty())
 		{
@@ -34,10 +28,10 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 			satLits.pop_front();
 			for (TLit v = 1; v < (TLit)currentAssignment.size(); v++)
 			{
-				solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
+				solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -v, true);
 			}
-			assumps.push_back(-1 * l);
-			TToporReturnVal ret = solver->Solve(assumps);
+			assumps.push_back(-l);
+			ret = solver->Solve(assumps);
 			if (ret == TToporReturnVal::RET_SAT)
 			{
 				vector<TToporLitVal> newAssignment = solver->GetModel();
@@ -50,24 +44,24 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 					satLits = GetSatLits(currentAssignment, satLits);
 				}
 			}
+			else if (ret != TToporReturnVal::RET_UNSAT)
+			{
+				isGoodEpoch = false;
+				break;
+			}
 			assumps.pop_back();
 		}
 	}
-	if (anytime)
-	{
-		PrintModel(currentAssignment);
-		cout << "Optimal value: " << pb(currentAssignment) << endl;
-	}
-	return make_pair(currentAssignment, currentValue);
+	return make_tuple(ret, currentAssignment, currentValue);
 }
 
 template<typename TLit, typename TUInd, bool Compress>
-optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> obs, vector<TLit> assumps, bool anytime)
+optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> obs, vector<TLit> assumps)
 {
 	unordered_set<TLit> obs_uset;
 	for (TLit lit : obs)
 	{
-		solver->FixPolarity(-1 * lit, true);
+		solver->FixPolarity(-lit, true);
 		obs_uset.insert(lit);
 	}
 	TToporReturnVal ret = solver->Solve(assumps);
@@ -83,12 +77,6 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 	{
 		deque<TLit> satLits = GetSatLits(currentAssignment, obs);
 		isGoodEpoch = false;
-		if (anytime)
-		{
-			PrintModel(currentAssignment);
-			if (!AnytimeContinue(pb(currentAssignment)))
-				break;
-		}
 
 		while (!satLits.empty())
 		{
@@ -100,15 +88,15 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 				bool unsat = obs_uset.find(-v) != obs_uset.end();
 				if (sat || unsat)
 				{
-					solver->FixPolarity(unsat ? v : -1 * v, true);
+					solver->FixPolarity(unsat ? v : -v, true);
 				}
 				else
 				{
-					solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -1 * v, true);
+					solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -v, true);
 				}
 			}
-			assumps.push_back(-1 * l);
-			TToporReturnVal ret = solver->Solve(assumps);
+			assumps.push_back(-l);
+			ret = solver->Solve(assumps);
 			if (ret == TToporReturnVal::RET_SAT)
 			{
 				vector<TToporLitVal> newAssignment = solver->GetModel();
@@ -121,15 +109,16 @@ optional<pair<vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Com
 				}
 				satLits = GetSatLits(newAssignment, satLits);
 			}
+			else if (ret != TToporReturnVal::RET_UNSAT)
+			{
+				isGoodEpoch = false;
+				break;
+			}
 			assumps.pop_back();
 		}
 	}
-	if (anytime)
-	{
-		PrintModel(currentAssignment);
-		cout << "Optimal value: " << pb(currentAssignment) << endl;
-	}
-	return make_pair(currentAssignment, currentValue);
+
+	return make_tuple(ret, currentAssignment, currentValue);
 }
 
 template class Topor::CToporOptimization<int32_t, uint32_t, false>;

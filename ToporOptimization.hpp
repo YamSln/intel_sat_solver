@@ -2,9 +2,9 @@
 
 #include <vector>
 #include <deque>
-#include <iostream>
 #include <optional>
 #include <functional>
+#include <tuple>
 
 #include "Topor.hpp"
 #include "ToporExternalTypes.hpp"
@@ -15,16 +15,8 @@ namespace Topor
 	class CToporOptimization
 	{
 	public:
-		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> assumps = {},  bool anytime = false);
-		std::optional<std::pair<std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, bool anytime)
-		{
-			return Polosat(solver, pb, {}, anytime);
-		}
-		std::optional<std::pair<std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, std::vector<TLit> assumps = {}, bool anytime = false);
-		std::optional<std::pair<std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, bool anytime)
-		{
-			return StrictlyMonotonePolosat(solver, pb, obs, {}, anytime);
-		}
+		std::optional<std::tuple<TToporReturnVal, std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> assumps = {});
+		std::optional<std::tuple<TToporReturnVal, std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, std::vector<TLit> assumps = {});
 		
 	protected:
 		std::deque<TLit> GetSatLits(std::vector<TToporLitVal> model)
@@ -32,7 +24,7 @@ namespace Topor
 			std::deque<TLit> satLits;
 			for (TLit v = 1; v < (TLit)model.size(); v++)
 			{
-				satLits.push_back(model[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v);
+				satLits.push_back(model[v] == TToporLitVal::VAL_SATISFIED ? v : -v);
 			}
 			return satLits;
 		}
@@ -43,7 +35,7 @@ namespace Topor
 			std::deque<TLit> satLits;
 			for (TLit lit : lits)
 			{
-				if (model[lit < 0 ? -1 * lit : lit] == TToporLitVal::VAL_SATISFIED)
+				if (model[lit < 0 ? -lit : lit] == TToporLitVal::VAL_SATISFIED)
 				{
 					if (lit > 0)
 						satLits.push_back(lit);
@@ -55,24 +47,6 @@ namespace Topor
 				}
 			}
 			return satLits;
-		}
-
-		void PrintModel(std::vector<TToporLitVal> model)
-		{
-			std::cout << "v ";
-			for (TLit v = 1; v < (TLit)model.size(); v++)
-			{
-				std::cout << (model[v] == TToporLitVal::VAL_SATISFIED ? v : -1 * v) << " ";
-			}
-			std::cout << std::endl;
-		}
-
-		bool AnytimeContinue(double pbVal)
-		{
-			std::cout << "Current objective value: " << pbVal << ". Continue? [Y/n]\n";
-			char input;
-			std::cin >> input;
-			return std::tolower(input) == 'y';
 		}
 	};
 }
