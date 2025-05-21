@@ -60,6 +60,9 @@
     <ClCompile Include="ToporCardinality.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ToporOptimization.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BasicMemoryUsage.h">
@@ -120,6 +123,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ToporVarMap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ToporOptimization.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ToporOptimizationSettings.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

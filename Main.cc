@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <deque>
 #include <filesystem>
 #include <functional>
 #include <cstring>
@@ -35,6 +36,30 @@ extern "C" void pclose(FILE * pipe);
 #define fileno _fileno
 #endif
 
+#ifdef _WIN32
+#include <Windows.h>
+std::function<BOOL(DWORD)> EXIT_SIG_HANDLER;
+
+static BOOL WINAPI ExitSignalHandler(DWORD signal) 
+{
+	if (EXIT_SIG_HANDLER)
+	{
+		return EXIT_SIG_HANDLER(signal);
+	}
+	return FALSE;
+}
+#else
+#include <signal.h>
+std::function<void(int)> g_signalHandler;
+static void ExitSignalHandler(int signal) 
+{
+	if (g_signalHandler) 
+	{
+		g_signalHandler(signal);
+	}
+}
+#endif
+
 template<char delimiter>
 class WordDelimitedBy : public std::string
 {};
@@ -43,6 +68,8 @@ namespace fs = std::filesystem;
 
 #include "Topor.hpp"
 #include "ToporVarMap.hpp"
+#include "ToporOptimization.hpp"
+#include "ToporOptimizationSettings.hpp"
 
 using namespace std;
 using namespace Topor;
@@ -215,6 +242,77 @@ int OnFinishingSolving(TTopor& topor, TToporReturnVal ret, bool printModel, bool
 	}
 }
 
+template <typename TTopor>
+int OnFinishingOptimizing(TTopor& topor, TToporReturnVal& ret, vector<TToporLitVal>& model, double& val)
+{
+	CApplyFuncOnExitFromScope<> printStatusExplanation([&]()
+	{
+		const string expl = topor.GetStatusExplanation();
+		if (!expl.empty())
+		{
+			cout << "c " << expl << endl;
+		}
+	});
+
+	auto PrintModelAndVal = [&]()
+	{
+		cout << "v ";
+		for (int v = 1; v < model.size(); v++)
+		{
+			cout << (model[v] != TToporLitVal::VAL_UNSATISFIED ? v : -v) << " ";
+		}
+		cout << endl;
+		cout << "b " << val << endl;
+	};
+
+	switch (ret)
+	{
+	case Topor::TToporReturnVal::RET_SAT:
+		cout << "s SATISFIABLE" << endl;
+		PrintModelAndVal();
+		return 10;
+	case Topor::TToporReturnVal::RET_UNSAT:
+		cout << "s UNSATISFIABLE" << endl;
+		return 20;
+	case Topor::TToporReturnVal::RET_TIMEOUT_LOCAL:
+		PrintModelAndVal();
+		cout << "s TIMEOUT_LOCAL" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_CONFLICT_OUT:
+		PrintModelAndVal();
+		cout << "s CONFLICT_OUT" << endl;
+		return 30;
+	case Topor::TToporReturnVal::RET_MEM_OUT:
+		cout << "s MEMORY_OUT" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_USER_INTERRUPT:
+		PrintModelAndVal();
+		cout << "s USER_INTERRUPT" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_INDEX_TOO_NARROW:
+		cout << "s INDEX_TOO_NARROW" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_PARAM_ERROR:
+		cout << "s PARAM_ERROR" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_TIMEOUT_GLOBAL:
+		PrintModelAndVal();
+		cout << "s TIMEOUT_GLOBAL" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_DRAT_FILE_PROBLEM:
+		cout << "s DRAT_FILE_PROBLEM" << endl;
+		return BadRetVal;
+	case Topor::TToporReturnVal::RET_EXOTIC_ERROR:
+		cout << "s EXOTIC_ERROR" << endl;
+		return BadRetVal;
+	default:
+		cout << "s UNEXPECTED_ERROR" << endl;
+		return BadRetVal;
+	}
+}
+
+
+
 
 
 int main(int argc, char** argv)
@@ -251,6 +349,7 @@ int main(int argc, char** argv)
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/allsat_models_number") << " : unsigned long integer; default = 1" << print_as_color<ansi_color_code::green>("1") << " : " << "the maximal number of models for AllSAT. AllSAT with blocking clauses over /topor_tool/allsat_blocking_variables's variables is invoked if: (1) this parameter is greater than 1; (2) the CNF format is DIMACS without Topor-specific commands; (3) /topor_tool/allsat_blocking_variables is non-empty\n";
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/allsat_blocking_variables") << " : string; default = " << print_as_color<ansi_color_code::green>("\"\"") << " : " << "if /topor_tool/allsat_models_number > 1, specifies the variables which will be used for blocking clauses, sperated by a comma, e.g., 1,4,5,6,7,15.\n";
 		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/allsat_blocking_variables_file_alg") << " : string; default = " << print_as_color<ansi_color_code::green>("3") << " : " << "if /topor_tool/allsat_models_number > 1 and our parameter > 0, read the blocking variables from the first comment line in the file (format: c 1,4,5,6,7,15), where the value means: 1 -- assign lowest internal SAT variables to blocking; 2 -- assign highest internal SAT variables to blocking; >=3 -- assign their own internal SAT variables to blocking \n";
+		cout << "\tc " << print_as_color <ansi_color_code::cyan>("/topor_tool/blackbox_optimization") << " : bool (0 or 1); default = " << print_as_color<ansi_color_code::green>("0") << " : " << "solve in black-box optimization mode?\n";
 
 		CTopor topor;
 		cout << topor.GetParamsDescr();
@@ -278,6 +377,7 @@ int main(int argc, char** argv)
 	unsigned long allsatBlockingFromInstanceAlg = 3;
 	// 0: 32-bit clause buffer index; 1: 64-bit clause buffer index; 2: 64-bit clause buffer index & bit-array-compression
 	uint8_t type_indexing_and_compression = 0;
+	bool bbOptMode = false;
 
 	/*
 	* Identify the input file type, read it, read the parameters too
@@ -456,6 +556,12 @@ int main(int argc, char** argv)
 		return topor32 ? topor32->GetSolveInvs() : topor64 ? topor64->GetSolveInvs() : toporc->GetSolveInvs();
 	};
 
+	auto ToporGetModel = [&]()
+	{
+		assert(!AllToporsNull());
+		return topor32 ? topor32->GetModel() : topor64 ? topor64->GetModel() : toporc->GetModel();
+	};
+
 	auto ToporOnFinishedSolving = [&](TToporReturnVal ret, bool printModel, bool printUcore, const std::span<TLit> assumps, vector<TLit>& varsToPrint)
 	{
 		return topor32 ? OnFinishingSolving(*topor32, ret, printModel, printUcore, assumps, varsToPrint.empty() ? nullptr : &varsToPrint) : topor64 ? OnFinishingSolving(*topor64, ret, printModel, printUcore, assumps, varsToPrint.empty() ? nullptr : &varsToPrint) : OnFinishingSolving(*toporc, ret, printModel, printUcore, assumps, varsToPrint.empty() ? nullptr : &varsToPrint);
@@ -484,6 +590,16 @@ int main(int argc, char** argv)
 	{
 		assert(!AllToporsNull());
 		topor32 ? topor32->AddCardinalityConstraint(c, cp, k) : topor64 ? topor64->AddCardinalityConstraint(c, cp, k) : toporc->AddCardinalityConstraint(c, cp, k);
+	};
+
+	auto ToporOnFinishedOptimizing = [&](TToporReturnVal& ret, vector<TToporLitVal>& model, double& val)
+	{
+		return topor32 ? OnFinishingOptimizing(*topor32, ret, model, val) : topor64 ? OnFinishingOptimizing(*topor64, ret, model, val) : OnFinishingOptimizing(*toporc, ret, model, val);
+	};
+
+	auto ToporInterruptNow = [&]()
+	{
+		return topor32 ? topor32->InterruptNow() : topor64 ? topor64->InterruptNow() : toporc->InterruptNow();
 	};
 
 	TToporReturnVal ret = TToporReturnVal::RET_EXOTIC_ERROR;
@@ -778,6 +894,11 @@ int main(int argc, char** argv)
 							cout << errMsg;
 							return true;
 						}
+					}
+					else if (param == "blackbox_optimization")
+					{
+						cout << "c /topor_tool/blackbox_optimization " << paramValStr << endl;
+						bbOptMode = true;
 					}
 					else
 					{
@@ -1535,7 +1656,61 @@ int main(int argc, char** argv)
 
 	if (!AllToporsNull() && ToporGetSolveInvs() == 0)
 	{
-		if (allsatModels > 1 && !blockingVars.empty())
+		if (bbOptMode)
+		{
+			auto ToporBlackBoxOptimization = [&](function<double(const vector<TToporLitVal>)> pb)
+			{
+				assert(!AllToporsNull());
+				if (topor32)
+				{
+					CToporOptimization<TLit, uint32_t, false> opt;
+					return opt.Polosat(topor32, pb);
+				}
+				else if (topor64)
+				{
+					CToporOptimization<TLit, uint64_t, false> opt;
+					return opt.Polosat(topor64, pb);
+				}
+				else
+				{
+					CToporOptimization<TLit, uint64_t, true> opt;
+					return opt.Polosat(toporc, pb);
+				}
+			};
+
+#ifdef _WIN32
+			EXIT_SIG_HANDLER = [&](DWORD signal) -> BOOL
+			{
+				if (signal == CTRL_C_EVENT || signal == CTRL_CLOSE_EVENT)
+				{
+					ToporInterruptNow();
+					return TRUE;
+				}
+				return FALSE;
+			};
+
+			SetConsoleCtrlHandler(ExitSignalHandler, TRUE);
+#else
+			g_signalHandler = [&](int signal)
+			{
+				ToporInterruptNow();
+			};
+
+			signal(SIGINT, ExitSignalHandler);
+			signal(SIGTERM, ExitSignalHandler);
+#endif
+
+			auto res = ToporBlackBoxOptimization(pb);
+			if (!res)
+			{
+				cout << "Could not optimize in current settings. This is usually the case when the formula loaded into the solver is UNSAT." << endl;
+				return BadRetVal;
+			}
+
+			auto& [retVal, model, val] = *res;
+			retValBasedOnLatestSolve = ToporOnFinishedOptimizing(retVal, model, val);
+		}
+		else if (allsatModels > 1 && !blockingVars.empty())
 		{
 			vector<TLit> assumpsEmpty;
 			ret = ToporSolve();
@@ -1565,6 +1740,7 @@ int main(int argc, char** argv)
 					if (VerifyModel() == BadRetVal) return BadRetVal;
 				}
 			}
+			
 		}
 		else
 		{
@@ -1573,7 +1749,6 @@ int main(int argc, char** argv)
 				return BadRetVal;
 			}
 		}
-
 	}
 
 	return retValBasedOnLatestSolve;

@@ -4,4 +4,8 @@
     <LocalDebuggerCommandArguments>C:\Users\Yam\intel_sat_solver\cardinality_constraints_instances\cc_test.cnf</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArguments>C:\Users\Yam\intel_sat_solver\test_cases\test_2.cnf /topor_tool/blackbox_optimization 1</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
 </Project>
