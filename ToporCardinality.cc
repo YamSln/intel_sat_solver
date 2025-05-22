@@ -1,7 +1,6 @@
 #include "ToporCardinality.hpp"
 
 #include <stack>
-#include <iostream>
 #include <cassert>
 
 using namespace Topor;

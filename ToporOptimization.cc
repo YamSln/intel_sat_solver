@@ -75,12 +75,31 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 }
 
 template<typename TLit, typename TUInd, bool Compress>
-optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> obs, vector<TLit> assumps)
+optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> obs, vector<TLit> assumps, VarMap<TLit>* mapping)
 {
+	auto MapAssignment = [&](vector<TToporLitVal> assignment)
+	{
+		if (mapping)
+		{
+			auto maxVar = mapping->GetMaxMappedFileVar();
+			if (maxVar != nullopt)
+			{
+				vector<TToporLitVal> mappedAssignment = { TToporLitVal::VAL_SATISFIED };
+				for (TLit v = 1; v <= maxVar; ++v)
+				{
+					TLit userVar = mapping->GetUserVar(v);
+					mappedAssignment.push_back(assignment[userVar]);
+				}
+				return mappedAssignment;
+			}
+		}
+		return assignment;
+	};
+
 	unordered_set<TLit> obs_uset;
 	for (TLit lit : obs)
 	{
-		solver->FixPolarity(-lit, true);
+		solver->FixPolarity(lit < 0 ? lit : -lit, true);
 		obs_uset.insert(lit);
 	}
 	TToporReturnVal ret = solver->Solve(assumps);
@@ -89,7 +108,7 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 		return nullopt;
 	}
 	vector<TToporLitVal> currentAssignment = solver->GetModel();
-	double currentValue = pb(currentAssignment);
+	double currentValue = pb(MapAssignment(currentAssignment));
 	bool isGoodEpoch = true;
 
 	while (isGoodEpoch)
@@ -111,7 +130,7 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 				}
 				else
 				{
-					solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -v, true);
+					solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_UNSATISFIED ? v : -v, true);
 				}
 			}
 			assumps.push_back(-l);
@@ -119,7 +138,7 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 			if (ret == TToporReturnVal::RET_SAT)
 			{
 				vector<TToporLitVal> newAssignment = solver->GetModel();
-				double newValue = pb(newAssignment);
+				double newValue = pb(MapAssignment(newAssignment));
 				if (newValue < currentValue)
 				{
 					currentAssignment = newAssignment;

@@ -23,31 +23,34 @@ namespace Topor
 		};
 
 		std::vector<int> studentsClasses;
+		bool assigned;
 		for (int i = 0; i < numStudents; i++)
 		{
+			assigned = false;
 			for (int j = 1 + i * numClasses; j <= numClasses + i * numClasses; j++)
 			{
 				if (assignment[j] == TToporLitVal::VAL_SATISFIED)
 				{
 					studentsClasses.push_back((j-1) % numClasses);
+					assigned = true;
 					break;
 				}
 			}
+			if (!assigned)
+			{
+				studentsClasses.push_back(-1);
+			}
 		}
-
-		
 
 		int totalPenalty = 0;
 		for (int i = 0; i < studentsClasses.size(); i++)
 		{
 			for (int j = i + 1; j < studentsClasses.size(); j++)
 			{
-				
-				if (studentsClasses[i] == studentsClasses[j] && Overlap(i, j))
+				if (studentsClasses[i] != -1 && studentsClasses[i] == studentsClasses[j] && Overlap(i, j))
 				{
 					totalPenalty += classesPenalty[studentsClasses[i]];
 				}
-				
 			}
 		}
 

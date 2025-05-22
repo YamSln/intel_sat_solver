@@ -221,8 +221,18 @@ TLit CTopor<TLit, TUInd, Compress>::GetNextAvailableVar()
 template <typename TLit, typename TUInd, bool Compress>
 void CTopor<TLit, TUInd, Compress>::AddCardinalityConstraint(const span<TLit> lits, CardinalityPredicate cp, uint64_t k)
 {
+	auto NextAvailableVar = [&]()
+	{
+		TLit currentMax = 0;
+		for (TLit lit : lits)
+		{
+			currentMax = max(lit < 0 ? -lit : lit, currentMax);
+		}
+		return max(currentMax + 1, GetNextAvailableVar());
+	};
+
 	CToporCardinality<TLit> ce(CCEncoding::TOTALIZER);
-	vector<vector<TLit>> clauses = ce.encode(lits, cp, k, GetNextAvailableVar());
+	vector<vector<TLit>> clauses = ce.encode(lits, cp, k, NextAvailableVar());
 	for (span<TLit> clause : clauses)
 	{
 		AddClause(clause);
