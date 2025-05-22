@@ -8,6 +8,7 @@
 
 #include "Topor.hpp"
 #include "ToporExternalTypes.hpp"
+#include "ToporVarMap.hpp"
 
 namespace Topor
 {
@@ -15,7 +16,7 @@ namespace Topor
 	class CToporOptimization
 	{
 	public:
-		std::optional<std::tuple<TToporReturnVal, std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> assumps = {});
+		std::optional<std::tuple<TToporReturnVal, std::vector<TToporLitVal>, double>> Polosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> assumps = {}, VarMap<TLit>* mapping = nullptr);
 		std::optional<std::tuple<TToporReturnVal, std::vector<TToporLitVal>, double>> StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, std::function<double(const std::vector<TToporLitVal>)> pb, std::vector<TLit> obs, std::vector<TLit> assumps = {});
 		
 	protected:

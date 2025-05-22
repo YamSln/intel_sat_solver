@@ -6,15 +6,34 @@ using namespace std;
 using namespace Topor;
 
 template <typename TLit, typename TUInd, bool Compress>
-optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> assumps)
+optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> assumps, VarMap<TLit>* mapping)
 {
+	auto MapAssignment = [&](vector<TToporLitVal> assignment)
+	{
+		if (mapping)
+		{
+			auto maxVar = mapping->GetMaxMappedFileVar();
+			if (maxVar != nullopt)
+			{
+				vector<TToporLitVal> mappedAssignment = { TToporLitVal::VAL_SATISFIED };
+				for (TLit v = 1; v <= maxVar; ++v)
+				{
+					TLit userVar = mapping->GetUserVar(v);
+					mappedAssignment.push_back(assignment[userVar]);
+				}
+				return mappedAssignment;
+			}
+		}
+		return assignment;
+	};
+
 	TToporReturnVal ret = solver->Solve(assumps);
 	if (ret != TToporReturnVal::RET_SAT)
 	{
 		return nullopt;
 	}
 	vector<TToporLitVal> currentAssignment = solver->GetModel();
-	double currentValue = pb(currentAssignment);
+	double currentValue = pb(MapAssignment(currentAssignment));
 	bool isGoodEpoch = true;
 
 	while (isGoodEpoch)
@@ -28,14 +47,14 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 			satLits.pop_front();
 			for (TLit v = 1; v < (TLit)currentAssignment.size(); v++)
 			{
-				solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_SATISFIED ? v : -v, true);
+				solver->FixPolarity(currentAssignment[v] != TToporLitVal::VAL_UNSATISFIED ? v : -v, true);
 			}
 			assumps.push_back(-l);
 			ret = solver->Solve(assumps);
 			if (ret == TToporReturnVal::RET_SAT)
 			{
 				vector<TToporLitVal> newAssignment = solver->GetModel();
-				double newValue = pb(newAssignment);
+				double newValue = pb(MapAssignment(newAssignment));
 				if (newValue < currentValue)
 				{
 					currentAssignment = newAssignment;

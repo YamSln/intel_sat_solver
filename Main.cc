@@ -254,26 +254,40 @@ int OnFinishingOptimizing(TTopor& topor, TToporReturnVal& ret, vector<TToporLitV
 		}
 	});
 
+	auto PrintVarByLitVal = [&](TLit v, TToporLitVal vVal)
+	{
+		assert(vVal != TToporLitVal::VAL_UNASSIGNED);
+		cout << " " << (vVal != TToporLitVal::VAL_UNSATISFIED ? v : -v);
+	};
+
+	auto PrintMappedVal = [&](TLit v)
+	{
+		const auto vVal = variablesMapping.MappingExists(v) ? model[variablesMapping.GetUserVar(v)] : TToporLitVal::VAL_DONT_CARE;
+		PrintVarByLitVal(v, vVal);
+	};
+
 	auto PrintModelAndVal = [&]()
 	{
-		cout << "v ";
-		for (int v = 1; v < model.size(); v++)
+		cout << "v";
+		auto maxVar = variablesMapping.GetMaxMappedFileVar();
+		if (maxVar != nullopt)
 		{
-			cout << (model[v] != TToporLitVal::VAL_UNSATISFIED ? v : -v) << " ";
+			for (TLit v = 1; v <= maxVar; ++v)
+			{
+				PrintMappedVal(v);
+			}
 		}
-		cout << endl;
+		cout << " 0" << endl;
 		cout << "b " << val << endl;
 	};
 
 	switch (ret)
 	{
 	case Topor::TToporReturnVal::RET_SAT:
+	case Topor::TToporReturnVal::RET_UNSAT:
 		cout << "s SATISFIABLE" << endl;
 		PrintModelAndVal();
 		return 10;
-	case Topor::TToporReturnVal::RET_UNSAT:
-		cout << "s UNSATISFIABLE" << endl;
-		return 20;
 	case Topor::TToporReturnVal::RET_TIMEOUT_LOCAL:
 		PrintModelAndVal();
 		cout << "s TIMEOUT_LOCAL" << endl;
@@ -310,9 +324,6 @@ int OnFinishingOptimizing(TTopor& topor, TToporReturnVal& ret, vector<TToporLitV
 		return BadRetVal;
 	}
 }
-
-
-
 
 
 int main(int argc, char** argv)
@@ -1664,17 +1675,17 @@ int main(int argc, char** argv)
 				if (topor32)
 				{
 					CToporOptimization<TLit, uint32_t, false> opt;
-					return opt.Polosat(topor32, pb);
+					return opt.Polosat(topor32, pb, {}, &variablesMapping);
 				}
 				else if (topor64)
 				{
 					CToporOptimization<TLit, uint64_t, false> opt;
-					return opt.Polosat(topor64, pb);
+					return opt.Polosat(topor64, pb, {}, &variablesMapping);
 				}
 				else
 				{
 					CToporOptimization<TLit, uint64_t, true> opt;
-					return opt.Polosat(toporc, pb);
+					return opt.Polosat(toporc, pb, {}, &variablesMapping);
 				}
 			};
 

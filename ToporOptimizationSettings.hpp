@@ -9,27 +9,48 @@ namespace Topor
 	// The pseudo-boolean function for optimization mode
 	double pb(std::vector<TToporLitVal> assignment)
 	{
-		if (assignment[1] == TToporLitVal::VAL_SATISFIED)
+		static const int numClasses = 7;
+		static const std::vector<int> classesPenalty = { 5, 5, 5, 4, 3, 2, 1 };
+		static const int numStudents = 14;
+		static const std::vector<std::vector<int>> studentTimes = {
+			{1, 6}, {4, 10}, {2, 8}, {7, 12}, {5, 9}, {8, 13}, {0, 4},
+			{3, 7}, {10, 15}, {12, 18}, {6, 11}, {9, 14}, {16, 19}, {17, 20}
+		};
+
+		auto Overlap = [&](int s1, int s2)
 		{
-			if (assignment[2] == TToporLitVal::VAL_SATISFIED)
+			return studentTimes[s1][0] < studentTimes[s2][1] && studentTimes[s2][0] < studentTimes[s1][1];
+		};
+
+		std::vector<int> studentsClasses;
+		for (int i = 0; i < numStudents; i++)
+		{
+			for (int j = 1 + i * numClasses; j <= numClasses + i * numClasses; j++)
 			{
-				return assignment[3] == TToporLitVal::VAL_SATISFIED ? 20.4 : 1.35;
-			}
-			else
-			{
-				return assignment[3] == TToporLitVal::VAL_SATISFIED ? 75 : 96.3;
+				if (assignment[j] == TToporLitVal::VAL_SATISFIED)
+				{
+					studentsClasses.push_back((j-1) % numClasses);
+					break;
+				}
 			}
 		}
-		else
+
+		
+
+		int totalPenalty = 0;
+		for (int i = 0; i < studentsClasses.size(); i++)
 		{
-			if (assignment[2] == TToporLitVal::VAL_SATISFIED)
+			for (int j = i + 1; j < studentsClasses.size(); j++)
 			{
-				return assignment[3] == TToporLitVal::VAL_SATISFIED ? 100.1 : 8;
-			}
-			else
-			{
-				return assignment[3] == TToporLitVal::VAL_SATISFIED ? 3.5 : 2.3;
+				
+				if (studentsClasses[i] == studentsClasses[j] && Overlap(i, j))
+				{
+					totalPenalty += classesPenalty[studentsClasses[i]];
+				}
+				
 			}
 		}
+
+		return totalPenalty;
 	};
 }
