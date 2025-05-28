@@ -1669,7 +1669,7 @@ int main(int argc, char** argv)
 	{
 		if (bbOptMode)
 		{
-			auto ToporBlackBoxOptimization = [&](function<double(const vector<TToporLitVal>)> pb)
+			auto ToporBlackBoxOptimization = [&](function<double(const vector<TToporLitVal>, any)> pb)
 			{
 				assert(!AllToporsNull());
 				if (topor32)
@@ -1711,7 +1711,7 @@ int main(int argc, char** argv)
 			signal(SIGTERM, ExitSignalHandler);
 #endif
 
-			auto res = ToporBlackBoxOptimization(pb);
+			auto res = ToporBlackBoxOptimization(pb<TLit>);
 			if (!res)
 			{
 				cout << "Could not optimize in current settings. This is usually the case when the formula loaded into the solver is UNSAT." << endl;

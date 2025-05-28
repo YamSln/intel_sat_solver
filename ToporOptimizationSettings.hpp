@@ -1,13 +1,18 @@
 #pragma once
 
 #include <vector>
+#include <any>
+#include <cassert>
+#include <optional>
 
 #include "ToporExternalTypes.hpp"
+#include "ToporVarMap.hpp"
 
 namespace Topor
 {
 	// The pseudo-boolean function for optimization mode
-	double pb(std::vector<TToporLitVal> assignment)
+	template <typename TLit = int32_t>
+	double pb(std::vector<TToporLitVal> assignment, std::any userData)
 	{
 		static const int numClasses = 7;
 		static const std::vector<int> classesPenalty = { 5, 5, 5, 4, 3, 2, 1 };
@@ -21,6 +26,29 @@ namespace Topor
 		{
 			return studentTimes[s1][0] < studentTimes[s2][1] && studentTimes[s2][0] < studentTimes[s1][1];
 		};
+
+		auto MapAssignment = [&](std::vector<TToporLitVal> assignment)
+		{
+			if (userData.has_value())
+			{
+				assert(userData.type() == typeid(VarMap<TLit>*));
+				VarMap<TLit>* mapping = any_cast<VarMap<TLit>*>(userData);
+				auto maxVar = mapping->GetMaxMappedFileVar();
+				if (maxVar != std::nullopt)
+				{
+					std::vector<TToporLitVal> mappedAssignment = { TToporLitVal::VAL_SATISFIED };
+					for (TLit v = 1; v <= maxVar; ++v)
+					{
+						TLit userVar = mapping->GetUserVar(v);
+						mappedAssignment.push_back(assignment[userVar]);
+					}
+					return mappedAssignment;
+				}
+			}
+			return assignment;
+		};
+
+		assignment = MapAssignment(assignment);
 
 		std::vector<int> studentsClasses;
 		bool assigned;

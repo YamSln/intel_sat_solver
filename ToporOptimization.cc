@@ -6,34 +6,15 @@ using namespace std;
 using namespace Topor;
 
 template <typename TLit, typename TUInd, bool Compress>
-optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> assumps, VarMap<TLit>* mapping)
+optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::Polosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>, any)> pb, vector<TLit> assumps, any userData)
 {
-	auto MapAssignment = [&](vector<TToporLitVal> assignment)
-	{
-		if (mapping)
-		{
-			auto maxVar = mapping->GetMaxMappedFileVar();
-			if (maxVar != nullopt)
-			{
-				vector<TToporLitVal> mappedAssignment = { TToporLitVal::VAL_SATISFIED };
-				for (TLit v = 1; v <= maxVar; ++v)
-				{
-					TLit userVar = mapping->GetUserVar(v);
-					mappedAssignment.push_back(assignment[userVar]);
-				}
-				return mappedAssignment;
-			}
-		}
-		return assignment;
-	};
-
 	TToporReturnVal ret = solver->Solve(assumps);
 	if (ret != TToporReturnVal::RET_SAT)
 	{
 		return nullopt;
 	}
 	vector<TToporLitVal> currentAssignment = solver->GetModel();
-	double currentValue = pb(MapAssignment(currentAssignment));
+	double currentValue = pb(currentAssignment, userData);
 	bool isGoodEpoch = true;
 
 	while (isGoodEpoch)
@@ -54,7 +35,7 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 			if (ret == TToporReturnVal::RET_SAT)
 			{
 				vector<TToporLitVal> newAssignment = solver->GetModel();
-				double newValue = pb(MapAssignment(newAssignment));
+				double newValue = pb(newAssignment, userData);
 				if (newValue < currentValue)
 				{
 					currentAssignment = newAssignment;
@@ -75,27 +56,8 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 }
 
 template<typename TLit, typename TUInd, bool Compress>
-optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>)> pb, vector<TLit> obs, vector<TLit> assumps, VarMap<TLit>* mapping)
+optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimization<TLit, TUInd, Compress>::StrictlyMonotonePolosat(CTopor<TLit, TUInd, Compress>* solver, function<double(const vector<TToporLitVal>, any)> pb, vector<TLit> obs, vector<TLit> assumps, any userData)
 {
-	auto MapAssignment = [&](vector<TToporLitVal> assignment)
-	{
-		if (mapping)
-		{
-			auto maxVar = mapping->GetMaxMappedFileVar();
-			if (maxVar != nullopt)
-			{
-				vector<TToporLitVal> mappedAssignment = { TToporLitVal::VAL_SATISFIED };
-				for (TLit v = 1; v <= maxVar; ++v)
-				{
-					TLit userVar = mapping->GetUserVar(v);
-					mappedAssignment.push_back(assignment[userVar]);
-				}
-				return mappedAssignment;
-			}
-		}
-		return assignment;
-	};
-
 	unordered_set<TLit> obs_uset;
 	for (TLit lit : obs)
 	{
@@ -108,7 +70,7 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 		return nullopt;
 	}
 	vector<TToporLitVal> currentAssignment = solver->GetModel();
-	double currentValue = pb(MapAssignment(currentAssignment));
+	double currentValue = pb(currentAssignment, userData);
 	bool isGoodEpoch = true;
 
 	while (isGoodEpoch)
@@ -138,7 +100,7 @@ optional<tuple<TToporReturnVal, vector<TToporLitVal>, double>> CToporOptimizatio
 			if (ret == TToporReturnVal::RET_SAT)
 			{
 				vector<TToporLitVal> newAssignment = solver->GetModel();
-				double newValue = pb(MapAssignment(newAssignment));
+				double newValue = pb(newAssignment, userData);
 				if (newValue < currentValue)
 				{
 					currentAssignment = newAssignment;
