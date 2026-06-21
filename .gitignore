@@ -7,3 +7,6 @@
 *.so
 intel_sat_solver_*
 depend.mk
+/.vs
+/topor
+/x64

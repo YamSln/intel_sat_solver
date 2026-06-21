@@ -57,6 +57,12 @@
     <ClCompile Include="TopiInprocess.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="algorithms\LSU.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="algorithms\MrsBeaver.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BasicMemoryUsage.h">
@@ -112,6 +118,15 @@
     </ClInclude>
     <ClInclude Include="TopiStatistics.hpp">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithms\Alg_nuwls.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithms\LSU.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithms\MrsBeaver.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
